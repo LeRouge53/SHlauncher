@@ -79,7 +79,7 @@ function argHandler() {
 			argHandler "$@"
 		;;
 		"")
-			true
+			trues
 		;;
 		*)
 			echo "Uknown argument : $1"
