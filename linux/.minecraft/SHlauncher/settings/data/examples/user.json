@@ -1,0 +1,12 @@
+{
+  "settingsVersion": "0.0.1",
+  "type": "user",
+  "settings": {
+    "Boolean": true,
+    "Number": 6,
+    "String": "string",
+    "Enum": "enabled",
+    "File": "path/to/a/file",
+    "Directory": "path/to/a/folder"
+  }
+}

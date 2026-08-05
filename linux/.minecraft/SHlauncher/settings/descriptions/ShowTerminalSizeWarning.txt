@@ -1,0 +1,1 @@
+Show a warning if the terminal used is too small and might cause issues when displaying big objects

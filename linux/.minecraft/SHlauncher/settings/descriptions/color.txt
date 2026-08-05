@@ -1,0 +1,6 @@
+Define the color system used by the launcher : 
+ - disabled : Disable the color system. No text modifications will be applied
+
+ - use8 : Use the 8 standard colors. Some colors might be modified by your terminal, consider using "use24bit" if your colors appear wierd (eg. orange when displaying blue), however this option may be used if your terminal doesn't support the 24-bit color system
+
+ - use24bit : Use the default color system that ensure the colors are displayed properly.

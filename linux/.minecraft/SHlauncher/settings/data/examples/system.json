@@ -1,0 +1,72 @@
+{
+    "settingsVersion": "0.0.1",
+    "type": "system",
+    "settings": {
+        "Boolean": {
+            "displayName": "Boolean setting",
+            "type": "boolean",
+            "description": "path/to/desc",
+            "isProtected": false,
+            "default": false
+        },
+        "Number": {
+            "displayName": "Number setting",
+            "type": "number",
+            "description": "path/to/desc",
+            "isProtected": false,
+            "hidden": true,
+            "min": 0,
+            "max": 40,
+            "step": 1,
+            "default": 3
+        },
+	    "String": {
+            "displayName": "String setting",
+            "type": "string",
+            "description": "path/to/desc",
+            "isProtected": false,
+            "hidden": false,
+            "default": ""
+        },
+        "Enum": {
+            "displayName": "Enum setting",
+            "type": "enum",
+            "description": "path/to/desc",
+            "enum" : [
+                {
+                    "id": "disabled",
+                    "displayName": "Disabled"
+                },
+                {
+                    "id": "enabledLimited",
+                    "displayName": "Enabled at some degree"
+                },
+                {
+                    "id": "enabled",
+                    "displayName": "Enabled"
+                }
+            ],
+            "isProtected": false,
+            "requiresRestart": true,
+            "default":"enabled"
+        },
+        "File": {
+            "displayName": "File setting",
+            "type": "file",
+            "description": "path/to/desc",
+            "mustExist": true,
+            "createIfMissing": false,
+            "isProtected": true,
+            "default": ""
+        },
+        "Directory": {
+            "displayName": "Folder setting",
+            "type": "folder",
+            "description": "path/to/desc",
+            "mustExist": false,
+            "createIfMissing": true,
+            "isProtected": false,
+            "default": "the/default/folder"
+        }
+    }
+}

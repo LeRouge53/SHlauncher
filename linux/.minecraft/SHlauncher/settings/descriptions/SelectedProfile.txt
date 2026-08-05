@@ -1,0 +1,2 @@
+Define the selected profile used by the launcher.
+Although this IS a setting, consider using "profile select" to modify this value.

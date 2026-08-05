@@ -1,0 +1,2 @@
+Define the selected instance used by the launcher.
+Although this IS a setting, consider using "instance select" to modify this value.

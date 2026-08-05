@@ -1,0 +1,39 @@
+{
+    "settingsVersion": "0.0.1",
+    "type": "system",
+    "settings": {
+        "threadUsedOnAssetDownload": {
+            "displayName": "Number of thread used when downloading assets",
+            "type": "number",
+            "description": "descriptions/threadUsedOnAssetDownload.txt",
+            "isProtected": false,
+            "min": 1,
+            "max": 99999,
+            "step": 1,
+            "default": 3,
+            "hidden": true
+        },
+        "color": {
+            "displayName": "Color behavior",
+            "type": "enum",
+            "description": "descriptions/color.txt",
+            "enum" : [
+                {
+                    "id": "disabled",
+                    "displayName": "Disabled"
+                },
+                {
+                    "id": "use8",
+                    "displayName": "Use the 8 standard colors (compatibility mode)"
+                },
+                {
+                    "id": "use24bit",
+                    "displayName": "Use the 24-bit color system"
+                }
+            ],
+            "isProtected": false,
+            "requiresRestart": true,
+            "default":"use24bit"
+        }
+    }
+}

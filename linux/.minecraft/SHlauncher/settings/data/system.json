@@ -1,0 +1,62 @@
+{
+    "settingsVersion": "0.0.1",
+    "type": "system",
+    "settings": {
+        "ThreadUsedOnAssetDownload": {
+            "displayName": "Number of thread used when downloading assets",
+            "type": "number",
+            "description": "descriptions/threadUsedOnAssetDownload.txt",
+            "isProtected": false,
+            "min": 1,
+            "max": 99,
+            "step": 1,
+            "default": 3,
+            "hidden": false
+        },
+        "Color": {
+            "displayName": "Color behavior",
+            "type": "enum",
+            "description": "descriptions/color.txt",
+            "enum" : [
+                {
+                    "id": "disabled",
+                    "displayName": "Disabled"
+                },
+                {
+                    "id": "use8",
+                    "displayName": "Use the 8 standard colors (compatibility mode)"
+                },
+                {
+                    "id": "use24bit",
+                    "displayName": "Use the 24-bit color system"
+                }
+            ],
+            "isProtected": false,
+            "requiresRestart": true,
+            "default":"use24bit"
+        },
+        "ShowTerminalSizeWarning": {
+            "displayName": "Show the terminal size warning",
+            "type": "boolean",
+            "description": "descriptions/ShowTerminalSizeWarning.txt",
+            "isProtected": false,
+            "default": true
+        },
+        "SelectedProfile": {
+            "displayName": "Selected profile",
+            "type": "string",
+            "description": "descriptions/SelectedProfile.txt",
+            "isProtected": true,
+            "default": "None",
+            "hidden": true
+        },
+        "SelectedInstance": {
+            "displayName": "Selected instance",
+            "type": "string",
+            "description": "descriptions/SelectedInstance.txt",
+            "isProtected": true,
+            "default": "None",
+            "hidden": true
+        }
+    }
+}
