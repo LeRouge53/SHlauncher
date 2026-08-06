@@ -23,6 +23,10 @@
                     "displayName": "Disabled"
                 },
                 {
+                    "id": "NoColor",
+                    "displayName": "No color shown, but text modification will still be applied"
+                },
+                {
                     "id": "use8",
                     "displayName": "Use the 8 standard colors (compatibility mode)"
                 },
