@@ -1,6 +1,6 @@
 function about() {
 	printf "${BLUE}SHlauncher${RESET}, created by LeRouge53.\n"
-	printf "Git repository: https://github.com/lerouge53/SHlauncher (currently private)\n"
+	printf "Git repository: https://github.com/leRouge53/SHlauncher (currently private)\n"
 	printf "MIT license (type \"about license\" for more info)\n"
 	printf "Thanks you for using this launcher\n"
 }
