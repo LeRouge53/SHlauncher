@@ -339,6 +339,11 @@ function reset() {
 }
 
 function init() {
+	if [[ -n $AreSettingsInited ]]; then
+		printf "${RED_BOLD}\"settings init\" is a command reserved for the launcher's bootstraper, please don't run it as a user${RESET}\n"
+	else
+		AreSettingsInited="Yh it's done"
+	fi
 	local currentSettingsVersion="0.0.1"
 	if ! [[ -f "data/system.json" ]]; then
 		# shellcheck disable=SC2154 disable=SC1091
