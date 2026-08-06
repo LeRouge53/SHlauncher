@@ -74,6 +74,9 @@ while true; do
 		"settings" | "sett")
 			source ./settings.sh "$@"
 		;;
+		"about")
+			source ./about.sh "$@"
+		;;
 		"reset")
 			# shellcheck disable=SC2164
 			cd "$dir/"
@@ -90,10 +93,6 @@ while true; do
 		;;
 		"clear")
 			clear
-		;;
-		"launcherVers")
-			# shellcheck disable=SC2154
-			echo "$SHlname version $SHlvers"
 		;;
 		"echo")
 			echo "$@"
