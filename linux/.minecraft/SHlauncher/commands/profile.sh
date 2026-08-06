@@ -15,7 +15,6 @@ function SetColor() {
 		DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
 		return 0
 	fi
-	profile
 	profile=$(jq -r '.name' "${Sett[SelectedProfile]}.json")
 	if jq -e '.isOnline' "${Sett[SelectedProfile]}.json" &>/dev/null; then \
 		DispProf="${RL_START}${BLUE}${RL_END}${profile}${RL_START}${RESET}${RL_END}"; else \
@@ -51,7 +50,7 @@ case $1 in
 			echo '{"name":"'"$usrn"'" , "isOnline":false , "uuid":"'"$(UUIDcalc "$usrn")"'" , "tuuid":"'"$(trimmedUUIDcalc "$usrn")"'"}' | jq . > "$(UUIDcalc "$usrn")".json
 		fi
 	;;
-	"select" | "switch")
+	"sel" | "select" | "switch")
 		usrn="$2"
 		if [ "$usrn" == "" ]; then printf "${RED_BOLD}Require a username as 3rd parameter; type \"profile help\"${RESET}\n"; fi
 
@@ -91,10 +90,10 @@ case $1 in
 		echo ""
 	;;
 	"")
-		echo "require arguments, type \"profile help\""
+		printf "${RED_BOLD}require arguments, type \"profile help\"${RESET}\n"
 	;;
 	*)
-		echo "Uknown argument : $1"
+		printf "${RED_BOLD}Uknown argument : %s${RESET}\n" "$1"
 esac
 
 unset -v isDone

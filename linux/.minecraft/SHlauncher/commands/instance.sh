@@ -183,16 +183,16 @@ function Main() {
 		"reset")
 			reset
 		;;
-		"select" | "switch")
+		"sel" | "select" | "switch")
 			shift
 			sel "$@"
 		;;
 		"")
-			echo "No argument given, assuming \"list\""
+			printf "${YELLOW}No argument given, assuming \"list\"${RESET}\n"
 			list
 		;;
 		*)
-			echo "Unregonized argument: $1"
+			printf "${RED_BOLD}Uknown argument : %s${RESET}\n" "$1"
 	esac
 }
 
