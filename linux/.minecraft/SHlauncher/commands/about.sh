@@ -1,7 +1,7 @@
 function about() {
 	printf "${BLUE}SHlauncher${RESET}, created by LeRouge53.\n"
 	printf "Git repository: https://github.com/leRouge53/SHlauncher (currently private)\n"
-	printf "MIT license (type \"about license\" for more info)\n"
+	printf "license GPL v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)\n"
 	printf "Thanks you for using this launcher\n"
 }
 
@@ -119,32 +119,6 @@ After doing this step, you should be able to launch the game using the "launch" 
 EOF
 }
 
-function license() {
-cat << EOF
-	MIT License
-
-Copyright (c) 2026 lerouge53
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-EOF
-}
-
 function version() {
 	# shellcheck disable=SC2154
 	echo "$SHlname, version $SHlvers"
@@ -186,9 +160,6 @@ function argHandler() {
 	case $1 in
 	"get-started")
 		getStarted
-	;;
-	"license")
-		license
 	;;
 	"version")
 		version
