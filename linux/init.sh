@@ -50,7 +50,7 @@ function argHandler() {
 	case $1 in
 		"-v" | "--version")
 			echo "$SHlname, version $SHlvers"
-			exit
+			exit 0
 		;;
 		"--usePortableMode")
 			portable=true
@@ -121,7 +121,10 @@ function declareArgs() {
 	esac
 
     declaredLongParam["$long"]="$type"
-    declaredShortParam["$short"]="$long"
+
+	if [ "$short" != "NoShort" ]; then
+    	declaredShortParam["$short"]="$long"
+	fi
 }
 function globalArgHandler() {
 	local -a args=("$@")
@@ -133,6 +136,7 @@ function globalArgHandler() {
 		case ${args[i]} in
 			--*)
 				argName=${args[i]#--}
+				if [ "${declaredLongParam["$argName"]}" == "" ]; then continue; fi
 				if [ "${declaredLongParam["$argName"]}" = "value" ]; then
 					if (( i + 1 >= ${#args[@]} )); then
 						printf "${RED_BOLD}%s require a value${RESET}\n" "$argName"
@@ -146,6 +150,7 @@ function globalArgHandler() {
 			;;
 			-*)
 				translatedParam=${declaredShortParam["${args[i]#-}"]}
+				if [ "$translatedParam" == "" ]; then continue; fi
 				if [ "${declaredLongParam["$translatedParam"]}" = "value" ]; then
 					if (( i + 1 >= ${#args[@]} )); then
 						printf "${RED_BOLD}%s require a value${RESET}\n" "$translatedParam"
