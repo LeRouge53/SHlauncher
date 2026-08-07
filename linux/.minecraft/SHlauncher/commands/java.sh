@@ -57,6 +57,18 @@ function install() {
 	esac
 }
 
+function helpPage() {
+	printf "${CYAN}Usage${RESET} : java [-j/-r] <instruction> [<version ID>]\n"
+	printf "Manages every java installation used\n"
+	printf "${CYAN}Argument list${RESET} :\n"
+	printf " - install [-j/-r] <version ID> : Installs the specified version\n"
+	printf " - remove <version ID> : Deletes the specified version\n"
+	printf " - list : Lists every java version installed\n"
+	printf " - help : Prints this help\n"
+	printf " - \"-r\" | \"--reinstall\" : Allows the reinstallation of a java instance\n"
+	printf " - \"-j\" | \"--jdk\" : Manages the java installation as a JDK instead of a JRE\n"
+}
+
 detect_os() {
 	case "$OSTYPE" in
 		msys*|cygwin*|win32*)  echo "windows" ;;
@@ -99,6 +111,9 @@ function argHandler() {
 					printf "${RED}Unsupported version, the only supported version are 8, 16, 17, 21 and 25${RESET}\n"
 					return 1
 			esac
+		;;
+		"help")
+			helpPage
 		;;
 		"")
 			printf "${YELLOW}No argument given, assuming \"list\"${RESET}\n"

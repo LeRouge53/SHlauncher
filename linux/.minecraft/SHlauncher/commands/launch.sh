@@ -65,7 +65,7 @@ function launch() {
 		IFS='|' read -r gameDir assetsDir java MinRam MaxRam < \
 			<(jq -r '"\(.gameDir)|\(.assetsDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
 		mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
-		mapfile -t additionnalJvmArgs < <(jq -r '.additionnalJvmArgs[]' "$SHdir/instances/$launchInst.json")
+		mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
 	elif [ "$modloader" == "neoforge" ]; then
 		IFS='|' read -r version inheritance versionType mainClass classpath < \
 			<(jq -r '"\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
@@ -80,7 +80,7 @@ function launch() {
 		IFS='|' read -r gameDir assetsDir java MinRam MaxRam < \
 			<(jq -r '"\(.gameDir)|\(.assetsDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
 		mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
-		mapfile -t additionnalJvmArgs < <(jq -r '.additionnalJvmArgs[]' "$SHdir/instances/$launchInst.json")
+		mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
 	fi
 
 	for Fprof in ./SHlauncher/profiles/*.json; do
@@ -94,7 +94,7 @@ function launch() {
 
 	MinRam=$(trimCr "$MinRam")
 	MaxRam=$(trimCr "$MaxRam")
-	jvmArgs+=("${additionnalJvmArgs[@]}")
+	jvmArgs+=("${additionalJvmArgs[@]}")
 	if [ "$modloader" != "vanilla" ]; then jvmArgs+=("${moddedJvmArgs[@]}"); fi
 	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam" "-Xdiag")
 	for arg in "${jvmArgs[@]}"; do
@@ -136,6 +136,15 @@ function launch() {
 	fi
 }
 
+function helpPage() {
+	printf "${CYAN}Usage${RESET} : launch [-p/-i]\n"
+	printf "launches the game using the provided instance and profile, require both to be set\n"
+	printf "${CYAN}Argument list${RESET} :\n"
+	printf " - help : display this help"
+	printf " - \"-p\" | \"--profile\" : specify a custom profile to override the selected one\n"
+	printf " - \"-i\" | \"--instance\" : specify a custom instance to override the selected one\n"
+}
+
 function argHandler() {
 	case $1 in
 		"-p" | "--profile")
@@ -162,6 +171,9 @@ function argHandler() {
 			shift 2
 			argHandler "$@"
 		;;
+		"help")
+			helpPage
+		;;
 		"")
 			if ! $customLaunchProf; then launchProf=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json"); fi
 			if ! $customLaunchInst; then launchInst=${Sett[SelectedInstance]}; fi
@@ -174,7 +186,7 @@ function argHandler() {
 			launch "$launchProf" "$launchInst"
 		;;
 		*)
-			echo "Uknown argument : $1"
+			echo "Unknown argument : $1"
 	esac
 }
 

@@ -7,7 +7,7 @@ function list() {
 	else
 		for Finst in *.json; do
 			IFS='|' read -r name version modloader gameDir java MinRam MaxRam modloaderVersion <<< "$(jq -r '"\(.name)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$Finst")"
-			mapfile -t additionnalJvmArgs < <(jq -r '.additionnalJvmArgs[]' "$Finst")
+			mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$Finst")
 			mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
 
 			printf "${BLUE}%s :${RESET}\n" "$name"
@@ -15,10 +15,10 @@ function list() {
 			echo " - Modloader: $modloader $modloaderVersion"
 			echo " - Game directory: $gameDir"
 			echo " - Java: $java"
-			echo " - Minimal ammount of RAM (-Xms): $MinRam"
-			echo " - Maximal ammount of RAM (-Xmx): $MaxRam"
-			echo " - Additionnal JVM arguments : " "${additionnalJvmArgs[@]}"
-			echo " - Additionnal game arguments : " "${customGameArgs[@]}"
+			echo " - Minimal amount of RAM (-Xms): $MinRam"
+			echo " - Maximal amount of RAM (-Xmx): $MaxRam"
+			echo " - Additional JVM arguments : " "${additionalJvmArgs[@]}"
+			echo " - Additional game arguments : " "${customGameArgs[@]}"
 		done
 	fi
 }
@@ -95,7 +95,7 @@ function create() {
 			fi
 		;;
 		*)
-			printf "${RED_BOLD}Uknown modloader \"%s\", supported modloaders are Vanilla, Forge, NeoForge, Fabric and Quilt${RESET}\n" "$modloader"
+			printf "${RED_BOLD}Unknown modloader \"%s\", supported modloaders are Vanilla, Forge, NeoForge, Fabric and Quilt${RESET}\n" "$modloader"
 			return 1
 	esac
 
@@ -139,7 +139,7 @@ function create() {
 			"java": $java,
 			"MinRam": $MinRam,
 			"MaxRam": $MaxRam,
-			"additionnalJvmArgs": [],
+			"additionalJvmArgs": [],
 			"customGameArgs": []
 		}' \
 		> "$name".json
@@ -167,6 +167,20 @@ function reset() {
 	SetColor
 }
 
+function helpPage() {
+	printf "${CYAN}Usage${RESET} : instance [-c/-a] <instruction> [<args...>]\n"
+	printf "Manages the instances of the launcher\n"
+	printf "${CYAN}Argument list${RESET} :\n"
+	printf " - create [-c/-a] <instance name> <modloader name> <vanilla version> [<modloader version>] : Creates an instance\n"
+	printf " - remove <instance name> : Deletes an instance\n"
+	printf " - list : Lists every created instances\n"
+	printf " - select <instance name> : Select an instance to use\n"
+	printf " - reset : Deselect the current instance (switching it to None)\n"
+	printf " - help : Prints this help\n"
+	printf " - \"-c\" | \"--customGameDir\" : (incompatible with -a) Sets the games directory to the specified one\n"
+	printf " - \"-a\" | \"--anotherGameDir\" : (incompatible with -c) Sets the games directory to a generated one\n"
+}
+
 function Main() {
 	case $1 in
 		"create")
@@ -187,12 +201,15 @@ function Main() {
 			shift
 			sel "$@"
 		;;
+		"help")
+			helpPage
+		;;
 		"")
 			printf "${YELLOW}No argument given, assuming \"list\"${RESET}\n"
 			list
 		;;
 		*)
-			printf "${RED_BOLD}Uknown argument : %s${RESET}\n" "$1"
+			printf "${RED_BOLD}Unknown argument : %s${RESET}\n" "$1"
 	esac
 }
 

@@ -1,8 +1,14 @@
+# shellcheck disable=SC2154
+
 function about() {
 	printf "${BLUE}SHlauncher${RESET}, created by LeRouge53.\n"
-	printf "Git repository: https://github.com/leRouge53/SHlauncher (currently private)\n"
-	printf "license GPL v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)\n"
+	printf "${BLUE}Git repository${RESET}: https://github.com/leRouge53/SHlauncher (currently private)\n"
+	printf "${BLUE}license${RESET}: GPL v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)\n"
 	printf "Thanks you for using this launcher\n"
+
+	if ${parameter[showDeathThreats]}; then
+		printf "\n${RED_BOLD}I am railcoining anyone that says this launcher has any connection to SKlauncher.\nD O N T${RESET}\n"
+	fi
 }
 
 function getStarted() {
@@ -16,8 +22,8 @@ how to launch the game and how to optimize the launch of the game.
  ${GREEN_BOLD}${GREEN_UNDER}- Preparation :${RESET}
 ${BLUE_BOLD}This part will introduce you to the launcher or to a terminal in general.${RESET}
 
-This launcher uses a custom shell to get and analyse commands entered commands.
-Altough a command usually looks like this, 
+This launcher uses a custom shell to get and analyze commands entered commands.
+Although a command usually looks like this, 
 
 	${WHITE_UNDER}instance create -a test neoforge 1.21.1 244${RESET}
 
@@ -28,7 +34,7 @@ It is actually separated in 3 parts :
 It is important because the command name NEEDS to be in 1st, the instructions usually follows a
 precise order but the parameters can be placed anywhere after the command name, even between instructions.
 
-The avariable command are : 
+The available command are : 
 	- ${CYAN_BOLD}Primary commands (required to be executed once to be able to launch the game) : 
 		- ${WHITE_BOLD}profile ${RESET}: manages the user's profiles (will be explained later)
 		- ${WHITE_BOLD}version ${RESET}: manages the version installed, and install new ones
@@ -45,7 +51,7 @@ The avariable command are :
 		- ${WHITE_BOLD}reset ${RESET}: reset the launcher (closes and open back the launcher)
 		- ${WHITE_BOLD}debug ${RESET}: same effect as reset, but enable debug mode
 		- ${WHITE_BOLD}echo ${RESET}: print()
-And please note that the majority of those commands have an integrated help page avariable
+And please note that the majority of those commands have an integrated help page available
 when using "<command name> help".
 
 
@@ -84,11 +90,11 @@ And this section will guide through getting all of that.
 		${YELLOW} the vanilla game (without precising the modloader version because there isn't any) but using the
 		${YELLOW} vanilla syntax to download a modded version will result in a crash or you downloading a wrong
 		${YELLOW} version entirely !)
- ${BLUE}3.${RESET} You can confirm the installation suceeded by displaying it with "version list installed"
+ ${BLUE}3.${RESET} You can confirm the installation succeeded by displaying it with "version list installed"
 
 	${GREEN_UNDER}- Creating an instance${RESET}
 An instance is an object made to represent a version of the game while providing more
-information to the launcher. It also allows to use a customised game directory and other simillar
+information to the launcher. It also allows to use a customized game directory and other similar
 stuffs without impacting other instances.
 To create and use an an instance : 
  ${BLUE}1.${RESET} type in the shell "instance create" followed by the name of the instance, the modloader,
@@ -100,14 +106,14 @@ To create and use an an instance :
 	${GREEN_UNDER}- Creating and using a profile${RESET}
 A profile is an object relatively similar to an instance. But it is made to represent a player instead of a
 version of the game. To create one : 
- ${BLUE}1.${RESET} Use the command "profile create" (or "profile auth" if you have minecraft prenium)
+ ${BLUE}1.${RESET} Use the command "profile create" (or "profile auth" if you have minecraft premium)
        followed by a minecraft compatible username
  ${BLUE}2.${RESET} Then select it with "profile select" like an instance, The newly created profile should appear in
        your shell prompt
-		${YELLOW} Please note that your username might be yellow and not cyan. It is used to easely check if you
-		${YELLOW} have selected a cracked profile or a prenium one
+		${YELLOW} Please note that your username might be yellow and not cyan. It is used to easily check if you
+		${YELLOW} have selected a cracked profile or a premium one
 
-${WHITE_DIM}temporary note : profile auth (prenium login) is not yet supported. So bruh${WHITE_DIM}
+${WHITE_DIM}temporary note : profile auth (premium login) is not yet supported. So bruh${WHITE_DIM}
 
 	${GREEN_UNDER}- Downloading java${RESET}
 After preparing the game, the only thing left to do is to download java. To do that : 
@@ -156,6 +162,16 @@ function testColor() {
 	printf "${WHITE_UNDER}WHITE_UNDER${RESET}\n"
 }
 
+function helpPage() {
+	printf "${CYAN}Usage :${RESET} about [<instruction>]\n"
+	printf "A command that gives information about the launcher\n"
+	printf "${CYAN}Argument list${RESET} :\n"
+	printf " - get-started: Prints the get started page of SHlauncher\n"
+	printf " - version: Show the version of the launcher\n"
+	printf " - about (or nothing): Show the useful information and links\n"
+	printf " - help: Print this help\n"
+}
+
 function argHandler() {
 	case $1 in
 	"get-started")
@@ -170,9 +186,17 @@ function argHandler() {
 	"" | "about")
 		about
 	;;
+	"help")
+		helpPage
+	;;
 	*)
-		printf "${RED_BOLD}Uknown argument : %s${RESET}\n" "$1"
+		printf "${RED_BOLD}Unknown argument : %s${RESET}\n" "$1"
 	esac
 }
 
-argHandler "$@"
+parameter[showDeathThreats]=false
+declareArgs showDeathThreats NoShort flag
+
+globalArgHandler "$@"
+
+argHandler "${instructions[@]}"

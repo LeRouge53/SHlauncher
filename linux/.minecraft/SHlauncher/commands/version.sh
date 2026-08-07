@@ -51,7 +51,7 @@ function install() {
 			local_sha1=$(sha1sum "$dest" | cut -d' ' -f1)
 
 			if [ "$local_sha1" != "$sha1" ]; then
-				printf "${YELLOW}Failed to download $path : missmached hash\n"
+				printf "${YELLOW}Failed to download $path : mismatched hash\n"
 				printf "${RED}Error is non recoverable : please retry${RESET}\n"
 				return 1
 			fi
@@ -147,7 +147,7 @@ function install() {
 			url="$(jq -r '.versions[] | select(.id == "'"$targetVers"'") | .url' ./SHlauncher/vanilla_version_manifest.json)"
 			mkdir -p "$versDir/$targetVers"
 			if [ "$url" == "" ]; then
-				printf "${RED}Invalid version, type \"version list\" to list all version avariable${RESET}\n"
+				printf "${RED}Invalid version, type \"version list\" to list all version available${RESET}\n"
 				return 1
 			fi
 
@@ -158,19 +158,19 @@ function install() {
 
 			hash=$(sha1sum "$versDir/$targetVers/$targetVers.jar" | awk '{print $1}')
 			if [ "$hash" != "$(jq -r '.downloads.client.sha1' "$versionJson")" ]; then
-				printf "${YELLOW}Failed to download the game: missmached hash\n"
+				printf "${YELLOW}Failed to download the game: mismatched hash\n"
 				printf "${RED}Error is non recoverable : please retry${RESET}\n"
 				command -p rm -r -- "${versDir:?}/$targetVers"
 				return 1
 			fi
 		;;
 		"neoforge")
-			function NeoArgSubtitute() {
+			function NeoArgSubstitute() {
 				local arg
 				local fullString
 				fullString=$(trimCr "$1")
 				if [[ -z $fullString ]]; then
-					printf "${YELLOW_BOLD}[BUG]${YELLOW} function NeoArgSubtitute require 1 entry argument, but none were ever passed${RESET}\n" >&2
+					printf "${YELLOW_BOLD}[BUG]${YELLOW} function NeoArgSubstitute require 1 entry argument, but none were ever passed${RESET}\n" >&2
 					return 1
 				fi
 
@@ -204,7 +204,7 @@ function install() {
 				if ! curl -sfLo "$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar" \
 					"https://maven.neoforged.net/releases/net/neoforged/neoforge/$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar"
 				then
-					printf "${RED}Invalid version, type \"version list -m neoforge\" to list all version avariable${RESET}\n"
+					printf "${RED}Invalid version, type \"version list -m neoforge\" to list all version available${RESET}\n"
 					return 1
 				fi
 			else
@@ -293,7 +293,7 @@ function install() {
 				done
 
 				for (( i=0; i<${#procArgs[@]}; i++ )); do
-					procArgs[i]=$(NeoArgSubtitute "${procArgs[i]}")
+					procArgs[i]=$(NeoArgSubstitute "${procArgs[i]}")
 					procArgs[i]=$(trimCr "${procArgs[i]}")
 				done
 
@@ -456,7 +456,7 @@ function install() {
 				# shellcheck disable=SC2194
 				case "" in
 					"$threadNumber" | "$targetFunc" | "$file")
-						printf "${YELLOW_BOLD}[BUG] function parallelDownload reuquire 3 entry argument, but some are missing ; entered arguments are:\n" >&2
+						printf "${YELLOW_BOLD}[BUG] function parallelDownload require 3 entry argument, but some are missing ; entered arguments are:\n" >&2
 						printf " - threadNumber: %s\n" "$threadNumber" >&2
 						printf " - targetFunc: %s\n" "$targetFunc" >&2
 						printf " - file:%s\n" "$file" >&2
@@ -577,7 +577,7 @@ function install() {
 		local type; type=$(echo "$entry" | jq -r 'type')
 
 		if [[ "$type" == "string" ]]; then
-			# String simple → toujours incluse
+			# String simple = toujours incluse
 			echo "$entry" | jq -r '.'
 			return
 		fi
@@ -587,7 +587,7 @@ function install() {
 		local rules_count; rules_count=$(echo "$rules" | jq 'length')
 
 		if [[ "$rules_count" -eq 0 ]]; then
-			# Objet sans rules → toujours inclus
+			# Objet sans rules = toujours inclus
 			echo "$entry" | jq -r '.value | if type == "array" then .[] else . end'
 			return
 		fi
@@ -743,23 +743,8 @@ function install() {
 	esac
 }
 
-function paramScreenFiller(){
-	# NOTE POUR GETSTARTED : les arguments doivent être passé AVANT les paramètres (sinon crash)
-	echo " - \"installed\": List all installed versions"
-	echo " - \"latest\": Show the latest released version, ignore -v"
-	echo " - \"snap\": List snapshots and releases versions"
-	echo " - \"b4release\": List alpha and beta versions only"
-	echo " - \"all\": List all versions at the same time, even snapshots, alpha and beta releases (recommended to have a beefy terminal)"
-	echo " - \"-v | --version\": filter versions, needs be completed with a version name (even partial, like 1.14 instead of 1.14.2)"
-	echo " - \"-m | --modloader\": List version linked to a modloader, need to be completed with a modloader name (Vanilla|Forge|Neoforge|Fabric|Quilt). Only partially supported :]"
-}
-
 list() {
 	case $1 in
-		"help")
-			echo "List of parameters:"
-			paramScreenFiller
-		;;
 		"b4" | "b4release")
 			if [ "$modloader" != "vanilla" ]; then
 				printf "${YELLOW}Using a modded instance for alpha and beta version of the game is unsupported"
@@ -945,7 +930,7 @@ list() {
 			fi
 		;;
 		*)
-			echo "Uknown filters or parameters:"
+			echo "Unknown filters or parameters:"
 			paramScreenFiller
 	esac
 }
@@ -981,6 +966,23 @@ function remove() {
 	fi
 }
 
+function helpPage() {
+	printf "${CYAN}Usage : ${RESET}version [-m/-v] <instruction> [<args...>]\n"
+	printf "Manages the installations of the different minecraft versions\n"
+	printf "${CYAN}Argument list${RESET} :\n"
+	printf " - list [-m/-v] [<instruction>] : List every version available. Additional instruction may be provided which can be : \n"
+	printf "       - (nothing) : Prints every release version\n"
+	printf "       - snapshot : Prints every snapshot version\n"
+	printf "       - b4release : Prints every alpha and beta version\n"
+	printf "       - all : Prints every (snapshot, alpha and beta included) version\n"
+	printf "       - installed : Prints every version that are currently installed\n"
+	printf " - install [-m] <vanilla version> [<modloader version>] : Install the specified version (some version might not be supported)\n"
+	printf " - remove [-m] <vanilla version> [<modloader version>] : Remove the specified version. This instruction is quite inefficient.\n"
+	printf " - help : Print this help\n"
+	printf "\-m\" | \"--modloader\" : Specifies the concerned modloader. Can be vanilla, Forge, Neoforge, Fabric or Quilt\n"
+	printf "\"-v\" | \"--version\" : Select a version \"filter\" (used with the grep command)\n"
+}
+
 function Main() {
 	case $1 in
 		"list")
@@ -995,11 +997,14 @@ function Main() {
 			shift
 			remove "$@"
 		;;
+		"help")
+			helpPage
+		;;
 		"")
 			printf "${RED_BOLD}Require an argument, type \"version help\"${RESET}\n"
 		;;
 		*)
-			printf "${RED_BOLD}Uknown argument : $1${RESET}\n"
+			printf "${RED_BOLD}Unknown argument : $1${RESET}\n"
 	esac
 }
 
@@ -1014,7 +1019,7 @@ sep=":"
 parameter[debugSkipAssets]=false
 parameter[modloader]=vanilla
 
-declareArgs debugSkipAssets D flag
+declareArgs debugSkipAssets NoShort flag
 declareArgs modloader m value
 declareArgs version v value
 
@@ -1042,7 +1047,7 @@ case $modloader in
 		modloader="quilt"
 	;;
 	*)
-		printf "${RED}Uknown modloader, the supported modloaders are Vanilla, Forge, Fabric, Neoforge and Quilt${RESET}\n"
+		printf "${RED}Unknown modloader, the supported modloaders are Vanilla, Forge, Fabric, Neoforge and Quilt${RESET}\n"
 		return 1
 esac
 

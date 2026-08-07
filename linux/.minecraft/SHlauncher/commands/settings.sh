@@ -31,7 +31,7 @@ function fetch() {
 	description=$(trimCr "$(jq -r ".settings.$settingId.description" "data/system.json")")
 	default=$(trimCr "$(jq -r ".settings.$settingId.default" "data/system.json")")
 	value=$(trimCr "$(jq -r ".settings.$settingId" "data/user.json")")
-	getOptionnalValues
+	getOptionalValues
 
 	case $type in
 		"boolean")
@@ -120,7 +120,7 @@ function fetch() {
 			else
 				printf "${CYAN}Require restart:${RED}No${RESET}\n"
 			fi
-			printf "${CYAN}Avariable options:${RESET}\n"
+			printf "${CYAN}Available options:${RESET}\n"
 			while read -r possibleSetting; do
 				possibleSetting=$(trimCr "$possibleSetting")
 				printf "   ${BLUE}%s${RESET} > " "$possibleSetting"
@@ -290,7 +290,7 @@ function edit() {
 			fi
 	esac
 
-	getOptionnalValues
+	getOptionalValues
 	if $protectedEdit; then
 		writeSettingsValue "$settingId" "$newValue"
 		# shellcheck disable=SC2154
@@ -310,7 +310,7 @@ function edit() {
 
 }
 
-function getOptionnalValues() {
+function getOptionalValues() {
 	isProtected=$(trimCr "$(jq -r ".settings.$settingId.isProtected" "data/system.json")")
 	if [ "$isProtected" == "null" ] || [ "$isProtected" == "" ]; then
 		isProtected=false
@@ -328,7 +328,7 @@ function reset() {
 		return 1
 	fi
 	default=$(jq -r ".settings.$settingId.default" "data/system.json")
-	getOptionnalValues
+	getOptionalValues
 	
 	writeSettingsValue "$settingId" "$default"
 
@@ -379,11 +379,25 @@ function init() {
 	fi
 }
 
+function helpPage() {
+	printf "${CYAN}Usage : ${RESET} settings [-a] <instruction> [<setting ID>]\n"
+	printf "manages the setting used by SHlauncher ; manipulates the \"user.json\" file\nlocated at SHlauncher/settings/data/user.json and can be modified manually.\n"
+	printf "this command is made to edit this file more easily\n"
+	printf "${CYAN}Argument list${RESET} :\n"
+	printf " - list [-a] : Lists all non-hidden settings\n"
+	printf " - edit : Edit a setting (apply the modification immediately if possible)\n"
+	printf " - pedit : Edit a setting even if it is protected\n"
+	printf " - init : Only used by the bootstraper. Loads every settings at the start of the launcher\n"
+	printf " - reset : Resets a settings to the default value\n"
+	printf " - help : Prints this help\n"
+	printf " - \"-a\" | \"--all\" : List every settings, even hidden ones\n"
+}
+
 function argHandler() {
 	case $1 in
 		"list")
 			shift
-			list "$@"
+			list
 		;;
 		"edit" | "set")
 			shift
@@ -405,12 +419,15 @@ function argHandler() {
 			shift
 			reset "$@"
 		;;
+		"help")
+			helpPage
+		;;
 		"")
 			printf "${YELLOW}No instructions given, assuming \"list\"${RESET}\n"
 			list
 		;;
 		*)
-			printf "${RED_BOLD}Uknown argument %s${RESET}\n" "$1"
+			printf "${RED_BOLD}Unknown argument %s${RESET}\n" "$1"
 			return 1
 	esac
 }

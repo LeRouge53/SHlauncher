@@ -25,6 +25,19 @@ isDone=false
 
 mkdir -p "$SHdir/profiles"
 
+function helpPage() {
+	printf "${CYAN}Usage${RESET} : profile <instruction> [<username>]\n"
+	printf "The profile command allow to create, remove and select profiles used to play the game.\n"
+	printf "${CYAN}Argument list :${RESET}\n"
+	printf "help : Print this help\n"
+	printf "list : List all available profiles (selected or not)\n"
+	printf "auth : Create a premium profile using a microsoft account (PLANNED)\n"
+	printf "reset : deselect a profile and restore it to \"None\"\n"
+	printf "create <username> : create a profile with the username\n"
+	printf "select <username> : select the profile corresponding to the username\n"
+	printf "remove <username> : delete the profile corresponding to the username\n"
+}
+
 case $1 in
 	"list")
 		if [ "$(ls)" == "" ]; then
@@ -86,14 +99,13 @@ case $1 in
 		SetColor
 	;;
 	"help")
-		cat "$SHdir/help/profile.txt"
-		echo ""
+		helpPage
 	;;
 	"")
 		printf "${RED_BOLD}require arguments, type \"profile help\"${RESET}\n"
 	;;
 	*)
-		printf "${RED_BOLD}Uknown argument : %s${RESET}\n" "$1"
+		printf "${RED_BOLD}Unknown argument : %s${RESET}\n" "$1"
 esac
 
 unset -v isDone
