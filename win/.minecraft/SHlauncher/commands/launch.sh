@@ -63,7 +63,7 @@ function launch() {
         IFS='|' read -r gameDir assetsDir java MinRam MaxRam < \
             <(jq -r '"\(.gameDir)|\(.assetsDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "./SHlauncher/instances/$launchInst.json")
         mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "./SHlauncher/instances/$launchInst.json")
-        mapfile -t additionnalJvmArgs < <(jq -r '.additionnalJvmArgs[]' "./SHlauncher/instances/$launchInst.json")
+        mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "./SHlauncher/instances/$launchInst.json")
     elif [ "$modloader" == "neoforge" ]; then
         IFS='|' read -r version inheritance versionType mainClass classpath < \
             <(jq -r '"\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "./SHlauncher/versions/$jsonInstance.json")
@@ -78,7 +78,7 @@ function launch() {
         IFS='|' read -r gameDir assetsDir java MinRam MaxRam < \
             <(jq -r '"\(.gameDir)|\(.assetsDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "./SHlauncher/instances/$launchInst.json")
         mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "./SHlauncher/instances/$launchInst.json")
-        mapfile -t additionnalJvmArgs < <(jq -r '.additionnalJvmArgs[]' "./SHlauncher/instances/$launchInst.json")
+        mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "./SHlauncher/instances/$launchInst.json")
     fi
 
     for Fprof in ./SHlauncher/profiles/*.json; do
@@ -92,7 +92,7 @@ function launch() {
 
     MinRam=$(trimCr "$MinRam")
     MaxRam=$(trimCr "$MaxRam")
-    jvmArgs+=("${additionnalJvmArgs[@]}")
+    jvmArgs+=("${additionalJvmArgs[@]}")
     if [ "$modloader" != "vanilla" ]; then jvmArgs+=("${moddedJvmArgs[@]}"); fi
     finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam" "-Xdiag")
     for arg in "${jvmArgs[@]}"; do

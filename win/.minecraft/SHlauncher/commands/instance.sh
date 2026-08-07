@@ -4,7 +4,7 @@ function list() {
     else
         for Finst in *.json; do
             IFS='|' read -r name version modloader gameDir java MinRam MaxRam modloaderVersion <<< "$(jq -r '"\(.name)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$Finst")"
-            mapfile -t additionnalJvmArgs < <(jq -r '.additionnalJvmArgs[]' "$Finst")
+            mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$Finst")
             mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
 
             printf "${BLUE}%s :${RESET}\n" "$name"
@@ -14,7 +14,7 @@ function list() {
             echo " - Java: $java"
             echo " - Minimal ammount of RAM (-Xms): $MinRam"
             echo " - Maximal ammount of RAM (-Xmx): $MaxRam"
-            echo " - Additionnal JVM arguments : " "${additionnalJvmArgs[@]}"
+            echo " - Additionnal JVM arguments : " "${additionalJvmArgs[@]}"
             echo " - Additionnal game arguments : " "${customGameArgs[@]}"
         done
     fi
@@ -159,7 +159,7 @@ function create() {
             "java": $java,
             "MinRam": $MinRam,
             "MaxRam": $MaxRam,
-            "additionnalJvmArgs": [],
+            "additionalJvmArgs": [],
             "customGameArgs": [],
             "selected": false
         }' \
