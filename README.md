@@ -1,5 +1,4 @@
 # SHlauncher
----
 SHlauncher is a CLI minecraft launcher written entirely in bash with minimal dependencies.
 It has the goal of being as light as possible (unlike electron launchers)
 
