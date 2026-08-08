@@ -1,8 +1,8 @@
 # shellcheck disable=SC2034
 # shellcheck disable=SC2154
-
+log "INFO" "colorHandler.sh" "Started loading colors"
 if $color; then
-	if [ "${Sett[Color]}" = "use24bit" ]; then
+	if [ "${Sett[Color]}" = "use24bit" ] || $force_color; then
 		RED=$'\033[38;2;255;20;9m'
 		RED_BOLD=${RED}$'\033[1m'
 		RED_DIM=${RED}$'\033[2m'
@@ -32,6 +32,7 @@ if $color; then
 		WHITE_BOLD=${WHITE}$'\033[1m'
 		WHITE_DIM=${WHITE}$'\033[2m'
 		WHITE_UNDER=${WHITE}$'\033[4m'
+		log "INFO" "colorHandler.sh" "Colors loaded (use24bit)"
 	elif [ "${Sett[Color]}" = "use8" ]; then
 		RED_BOLD=$'\e[1;31m'
 		RED_DIM=$'\e[2;31m'
@@ -62,6 +63,7 @@ if $color; then
 		WHITE_DIM=$'\e[2;37m'
 		WHITE_UNDER=$'\e[4;37m'
 		WHITE=$'\e[37m'
+		log "INFO" "colorHandler.sh" "Colors loaded (use8)"
 	elif [ "${Sett[Color]}" = "NoColor" ]; then
 		RED_BOLD=$'\033[1m'
 		RED_DIM=$'\033[2m'
@@ -92,6 +94,7 @@ if $color; then
 		WHITE_DIM=$'\033[2m'
 		WHITE_UNDER=$'\033[4m'
 		WHITE=$'\O33[0m'
+		log "INFO" "colorHandler.sh" "Colors loaded (NoColor)"
 	fi
 else
 	RED_BOLD=$'\033[0m'
@@ -123,8 +126,10 @@ else
 	WHITE_DIM=$'\033[0m'
 	WHITE_UNDER=$'\033[0m'
 	WHITE=$'\033[0m'
+	log "INFO" "colorHandler.sh" "Colors loaded (disabled)"
 fi
 
 RESET=$'\033[0m'
 RL_START=$'\001'
 RL_END=$'\002'
+log "DEBUG" "colorHandler.sh" "Finished loading colors"
