@@ -13,26 +13,68 @@ elif wslinfo --version &>/dev/null; then
 	source "$dir/.minecraft/SHlauncher/crashHandler.sh" WSL
 fi
 
+function log() {
+	local level=$1
+	local source=$2
+	shift 2
+	local msg="$*"
+	case "" in
+		"$level" | "$source")
+			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function log require 2 a \"level\" and a \"source\" argument, but some are missing : \n"
+			printf "level : %s" "$level"
+			printf "source : %s" "$source"
+			return 1
+		;;
+		*)
+			true
+	esac
+
+	touch "$SHlogFile"
+	printf '[%(%F %T)T] [%s/%s] %s\n' -1 "$level" "$source" "$msg" >> "$SHlogFile"
+
+	if $verbose || $debug; then
+		case $level in
+		"INFO")
+			printf "${GREEN_BOLD}[%s/%s]"$'\033[0m'"${GREEN} %s\n${RESET}" "$level" "$source" "$msg"
+		;;
+		"WARN")
+			printf "${YELLOW_BOLD}[%s/%s]${RESET}${YELLOW} %s\n${RESET}" "$level" "$source" "$msg"
+		;;
+		"ERROR")
+			printf "${RED_BOLD}[%s/%s]${RESET}${RED} %s\n${RESET}" "$level" "$source" "$msg"
+		;;
+		"FATAL")
+			printf "${RED_BOLD}[%s/%s]${RESET}${RED_BOLD} %s\n${RESET}" "$level" "$source" "$msg"
+		;;
+		"DEBUG")
+			printf "${CYAN_BOLD}[%s/%s]${RESET}${CYAN} %s\n${RESET}" "$level" "$source" "$msg"
+		;;
+		*)
+			printf "${WHITE_BOLD}[%s/%s]${RESET}${WHITE} %s\n${RESET}" "$level" "$source" "$msg"
+		esac
+	fi
+}
+
 source="${BASH_SOURCE[0]}" # le "mieux" en question
 while [ -h "$source" ]; do
-  dirname="$( cd -P "$( dirname "$source" )" >/dev/null 2>&1 && pwd )"
-  source="$(readlink "$source")"
-  [[ $source != /* ]] && source="$dirname/$source"
+	dirname="$( cd -P "$( dirname "$source" )" >/dev/null 2>&1 && pwd )"
+	source="$(readlink "$source")"
+	[[ $source != /* ]] && source="$dirname/$source"
 done
 dir="$( cd -P "$( dirname "$source" )" >/dev/null 2>&1 && pwd )"
 MCdir="$dir/.minecraft"
 SHdir="$MCdir/SHlauncher"
+SHlogFile="$SHdir/SHlog.log"
 export dir
-export MCdir
-export SHdir
 
 trap 'echo ""; source "$SHdir/crashHandler.sh" SIGINT' INT
 
 debug=false
+verbose=false
 portable=false
 IFSBak=$' \t\n'
 export SHlname="SHlauncherBE"
-export SHlvers="0.1.1"
+export SHlvers="0.2.0"
 cip=true
 # shellcheck disable=SC2329
 function trimCr() { 
@@ -42,7 +84,7 @@ function trimCr() {
 function cdfail() { #si cd plante, je sais même pas si l'init pouras accéder au crashHandler, donc je met tout dans une fonction
 	printf "${RED_BOLD}[FATAL] ${RED}SHlauncher has crashed! :\n"
 	printf " The launcher failed to start due to a working directory switch error.\n" 
-	printf " - It could be due to issuficient authorisations, the launcher being missinstalled or issues with the disk.${RESET}\n"
+	printf " - It could be due to insufficient authorizations, the launcher being missinstalled or issues with the disk.${RESET}\n"
 	exit 1
 }
 
@@ -54,6 +96,11 @@ function argHandler() {
 		;;
 		"--usePortableMode")
 			portable=true
+			shift
+			argHandler "$@"
+		;;
+		"-V" | "--verbose")
+			verbose=true
 			shift
 			argHandler "$@"
 		;;
@@ -82,11 +129,15 @@ function argHandler() {
 			true
 		;;
 		*)
-			echo "Uknown argument : $1"
+			echo "Unknown argument : $1"
 			exit 1
 	esac
 }
 argHandler "$@"
+
+command -p rm "$SHlogFile"
+log "DEBUG" "init.sh" "Core directory resolved to $dir"
+log "INFO" "init.sh" "Starting $SHlname, version $SHlvers, debug mode: $debug, verbose mode: $verbose, cip: $cip, portable mode: $portable"
 
 if $debug; then
 	printf "As you wish...\n"
@@ -96,7 +147,14 @@ fi
 export depFailed=false
 export jqNotInstalled=false
 
+if $portable; then
+	printf "${YELLOW_BOLD}[WARN]${YELLOW} You are using SHlauncher in portable mode, which uses a self-stored jq command. \n${YELLOW_BOLD}[WARN]${YELLOW} This is NOT ideal as this version cannot be updated\n"
+	printf "${YELLOW_BOLD}[WARN]${YELLOW} Please consider disabling portable mode${RESET}\n"
+	PATH="$PATH:$SHdir/jq"
+fi
+
 if ! jq --version &>/dev/null; then
+	log "FATAL" "init.sh" "JQ was not found in the PATH, crash imminent"
 	export depFailed=true
 	export jqNotInstalled=true
 fi ; source "$SHdir/dependencyInst.sh"
@@ -105,9 +163,9 @@ declare -A parameter
 declare -A declaredLongParam
 declare -A declaredShortParam
 function declareArgs() {
-    local long="$1"
-    local short="$2"
-    local type="$3"
+	local long="$1"
+	local short="$2"
+	local type="$3"
 	case "" in
 		"$long" | "$short" | "$type")
 			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function declareArgs requires 3 arguments but some are missing\n" >&2
@@ -120,11 +178,12 @@ function declareArgs() {
 			true
 	esac
 
-    declaredLongParam["$long"]="$type"
+	declaredLongParam["$long"]="$type"
 
 	if [ "$short" != "NoShort" ]; then
-    	declaredShortParam["$short"]="$long"
+		declaredShortParam["$short"]="$long"
 	fi
+	log "DEBUG" "init.sh:declareArgs" "Declared parameter \"$long\" with short \"$short\" and type \"$type\""
 }
 function globalArgHandler() {
 	local -a args=("$@")
@@ -136,6 +195,7 @@ function globalArgHandler() {
 		case ${args[i]} in
 			--*)
 				argName=${args[i]#--}
+				log "DEBUG" "init.sh:globalArgHandler" "Found parameter $argName"
 				if [ "${declaredLongParam["$argName"]}" == "" ]; then continue; fi
 				if [ "${declaredLongParam["$argName"]}" = "value" ]; then
 					if (( i + 1 >= ${#args[@]} )); then
@@ -147,9 +207,11 @@ function globalArgHandler() {
 				else
 					parameter["$argName"]=true
 				fi
+				log "DEBUG" "init.sh:globalArgHandler" "resolved $argName to ${parameter["$argName"]}"
 			;;
 			-*)
 				translatedParam=${declaredShortParam["${args[i]#-}"]}
+				log "DEBUG" "init.sh:globalArgHandler" "Found parameter $translatedParam"
 				if [ "$translatedParam" == "" ]; then continue; fi
 				if [ "${declaredLongParam["$translatedParam"]}" = "value" ]; then
 					if (( i + 1 >= ${#args[@]} )); then
@@ -161,6 +223,7 @@ function globalArgHandler() {
 				else
 					parameter["$translatedParam"]=true
 				fi
+				log "DEBUG" "init.sh:globalArgHandler" "resolved $translatedParam to ${parameter["$argName"]}"
 			;;
 			*)
 				instructions+=("${args[$i]}")
@@ -175,25 +238,27 @@ function writeSettingsValue() {
 	tmp=$(mktemp)
 	Sett["$settingId"]=$value
 	jq ".settings.$settingId = \"$value\"" "$SHdir/settings/data/user.json" > "$tmp" && mv "$tmp" "$SHdir/settings/data/user.json"
+	log "DEBUG" "init.sh:writeSettingsValue" "wrote setting value $settingId with $value"
 }
 
 source "$SHdir/commands/settings.sh" init
 
-if [ -n "$NO_COLOR" ]; then color=false; else color=true; fi
-source "$SHdir/colorHandler.sh"
+force_color=false
+if [ -n "$FORCE_COLOR" ]; then
+	color=true
+	force_color=true
+	log INFO "init.sh" "FORCE_COLOR recognized"
+elif [ -n "$NO_COLOR" ]; then
+	color=false
+	log INFO "init.sh" "NO_COLOR recognized"
+else 
+	color=true
+fi
 
-export CRASH=false
+source "$SHdir/colorHandler.sh"
 
 mkdir -p "$SHdir"
 cd "$SHdir" || cdfail
-export PROG_DIR=../.. # inutilisé
-export PREP_CRASH=false
-
-if $portable; then
-	printf "${YELLOW_BOLD}[WARN]${YELLOW} You are using SHlauncher in portable mode, which uses a self-stored jq command. \n${YELLOW_BOLD}[WARN]${YELLOW} This is NOT ideal as this version cannot be updated\n"
-	printf "${YELLOW_BOLD}[WARN]${YELLOW} Please consider disabling portable mode${RESET}\n"
-	PATH="$PATH:$SHdir/jq"
-fi
 
 if ! $cip; then
 	printf "${RED_BOLD}[MAJOR WARNING]${RED} Command injection protection is disabled, DO NOT execute commands that could\n"
@@ -203,6 +268,8 @@ fi
 ONLINE_MODE=true
 printf "${GREEN_BOLD}SHlauncher started${RESET}\n"
 echo "Started resolving dependency"
+
+log "INFO" "init.sh" "SHlauncher initialization finished, checking internet and creating directories"
 
 mkdir -p "$MCdir/assets/indexes"
 mkdir -p "$MCdir/assets/objects"
@@ -214,6 +281,7 @@ mkdir -p ./commands
 mkdir -p ./instances
 
 if ! ping -c 1 -W 3 google.com &>/dev/null; then
+	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
 	printf "${RED_BOLD}[ERROR]${RED} This launcher requires an Internet connection for almost everything, an offline mode exist but is very limited.\n"
 	printf "${RED_BOLD}[ERROR]${RED} Restart or reset the launcher to switch back to Online mode${RESET}\n"
 	ONLINE_MODE=false
@@ -226,6 +294,7 @@ echo "Finished resolving dependencies"
 # shellcheck disable=SC2329
 function mavenParser() {
 	local is=$1 # is pour "input string"
+	log "DEBUG" "mavenParser" "mavenParser called with $is"
 	if [ "$is" == "" ]; then
 		printf "${YELLOW_BOLD}[BUG] function mavenParser require 1 entry argument, but none were ever passed${RESET}\n"
 		return 1
@@ -260,25 +329,31 @@ function mavenParser() {
 	filename+=".$ext"
 
 	local path="$groupPath/$artifact/$version/$filename"
+	log "INFO" "mavenParser" "resolved $is to $path"
 	printf '%s' "${path%$'\r'}"
 	return
 }
 
 echo "Starting manifest check"
+log "DEBUG" "init.sh" "Downloading manifests..."
 if $ONLINE_MODE; then
 	if curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq . > ./temp_manifest.json; then
 		cat ./temp_manifest.json > ./vanilla_version_manifest.json
 	else
+		log "WARN" "init.sh" "Vanilla manifest download failed, invalid JSON file"
 		printf "${RED}[ERROR]${RED} The newly downloaded vanilla manifest seem invalid, the old one will be used instead${RESET}\n"
 	fi
 
 	if curl -so ./temp_manifest.xml https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml; then
 		readarray -t NeoVersions < <(grep -oP '(?<=<version>).*?(?=</version>)' ./temp_manifest.xml)
+		# shellcheck disable=SC2207
+		IFS=$'\n' NeoVersions=($(sort <<<"${NeoVersions[*]}"))
 		printf '%s\n' "${NeoVersions[@]}" | jq -Rs 'split("\n")[:-1]' \
 			> ./neoforge_version_manifest.json
 		command -p rm ./temp_manifest.xml
 		command -p rm ./temp_manifest.json
 	else
+		log "WARN" "init.sh" "Neoforge manifest download failed, invalid JSON file"
 		printf "${RED}[ERROR]${RED} The newly downloaded Neoforge manifest seem invalid, the old one will be used instead${RESET}\n"
 		command -p rm ./temp_manifest.json 2>/dev/null
 	fi
@@ -286,18 +361,20 @@ else
 	printf "${YELLOW_BOLD}[WARN]${YELLOW} Unable to reload some manifest file, old one will be used instead${RESET}\n"
 fi
 if [ ! -f ./vanilla_version_manifest.json ] || [ ! -s ./vanilla_version_manifest.json ]; then
+	log "ERROR" "init.sh" "Vanilla version manifest is corrupted or empty"
 	printf "${RED_BOLD}[ERROR]${RED} Invalid version manifest : file is missing or empty. You will not be able to download or repair any Vanilla game instances. Restart the launcher to reload the manifest${RESET}\n"
 fi
 
 if [ ! -f ./neoforge_version_manifest.json ] || [ ! -s ./neoforge_version_manifest.json ]; then
+	log "ERROR" "init.sh" "Neoforge version manifest is corrupted or empty"
 	printf "${RED_BOLD}[ERROR]${RED} Invalid version manifest : file is missing or empty. You will not be able to download or repair any Neoforge game instances. Restart the launcher to reload the manifest${RESET}\n"
 fi
-
 echo "Finished manifest check"
 printf "${GREEN_BOLD}Start successful *\\(^o^)/*${RESET}\n"
 touch ./.SHLhistory
 HISTFILE="$SHdir/.SHLhistory"
 history -c
 history -r
+log "INFO" "init.sh" "SHlauncher startup process completed, switching to core.sh"
 source ./core.sh
 exit

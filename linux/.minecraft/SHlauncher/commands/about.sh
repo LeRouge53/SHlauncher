@@ -194,6 +194,8 @@ function argHandler() {
 	esac
 }
 
+log "INFO" "about.sh" "settings.sh called with instructions ${instructions[*]}"
+
 parameter[showDeathThreats]=false
 declareArgs showDeathThreats NoShort flag
 

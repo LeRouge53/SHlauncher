@@ -3,6 +3,7 @@ function list() {
 	printf "| %-50s | %-30s | %-42s | %-12s |\n" "SETTING NAME" "SETTING ID" "VALUE" "TYPE"
 	mapfile -t settingName < <(jq -r '.settings | to_entries[] | .key' "data/user.json")
 	for (( i=0; i<${#settingName[@]}; i++ )); do
+		log "DEBUG" "settings.sh:list" "Checking settings \"${settingName[i]}\""
 		settingName[i]=$(trimCr "${settingName[i]}")
 
 		settingValue=$(trimCr "$(jq -r --argjson i "$i" '.settings | to_entries[$i] | .value' "data/user.json")")
@@ -12,6 +13,8 @@ function list() {
 		if [ "$isHidden" != "true" ] || ${parameter[all]}; then
 			printf "|-------------------------------------------------------------------------------------------------------------------------------------------------|\n"
 			printf "| %-50s | %-30s | %-42s | %-12s |\n" "$settingDisplayName" "${settingName[i]}" "$settingValue" "$settingType"
+		else
+			log "WARN" "settings.sh:list" "Did not show \"${settingName[i]}\" because it was marked as hidden. Use the parameter \"-a\" view it"
 		fi
 	done
 	printf "|=================================================================================================================================================|\n"
@@ -21,11 +24,13 @@ function fetch() {
 	settingId=$1
 	if [ "$settingId" == "" ]; then
 		printf "${RED_BOLD}Require a setting ID, use \"settings list\"${RESET}\n"
-		return 1
+		return 2
 	elif [ "$(jq -r ".settings.$settingId" "data/system.json")" == "null" ]; then
 		printf "${RED_BOLD}The entered setting does not exist, use \"settings list\"${RESET}\n"
-		return 1
+		return 2
 	fi
+
+	log "INFO" "settings.sh:fetch" "Fetching $settingId"
 	displayName=$(trimCr "$(jq -r ".settings.$settingId.displayName" "data/system.json")")
 	type=$(trimCr "$(jq -r ".settings.$settingId.type" "data/system.json")")
 	description=$(trimCr "$(jq -r ".settings.$settingId.description" "data/system.json")")
@@ -33,6 +38,7 @@ function fetch() {
 	value=$(trimCr "$(jq -r ".settings.$settingId" "data/user.json")")
 	getOptionalValues
 
+	log "DEBUG" "settings.sh:fetch" "setting type was resolved as $type"
 	case $type in
 		"boolean")
 			printf "${CYAN}Display name:${RESET} %s\n" "$displayName"
@@ -206,6 +212,7 @@ function fetch() {
 			cat "$description"
 			printf "\n\n"
 	esac
+	log "DEBUG" "settings.sh:fetch" "Finished fetch for setting $settingId"
 }
 
 function edit() {
@@ -215,24 +222,26 @@ function edit() {
 	case "" in
 		"$settingId" | "$newValue")
 			printf "${RED_BOLD}One or more argument were forgotten, this command require a setting ID and a new value to set.${RESET}\n"
-			return 1
+			return 2
 		;;
 		*)
 			true
 	esac
 	if [ "$(jq -r ".settings.$settingId" "data/system.json")" == "null" ]; then
 		printf "${RED_BOLD}The entered setting does not exist, use \"settings list\"${RESET}\n"
-		return 1
+		return 2
 	fi
+	log "INFO" "settings.sh:edit" "Modifying $settingId to $newValue"
 	type=$(trimCr "$(jq -r ".settings.$settingId.type" "data/system.json")")
-	value=$(trimCr "$(jq -r ".settings.$settingId" "data/user.json")")
+	log "DEBUG" "settings.sh:edit" "Setting type was resolved as $type, checking requirements..."
 	case $type in
 		"boolean")
 			newValue=${newValue//"yes"/"true"}
 			newValue=${newValue//"no"/"false"}
 			if [ "$newValue" != "true" ] && [ "$newValue" != "false" ]; then
 				printf "Failed to apply the changes: this setting require a boolean (true or false, yes or no)${RESET}\n"
-				return 1
+				log "ERROR" "settings.sh:edit" "Check failed, invalid value"
+				return 2
 			fi
 		;;
 		"number")
@@ -241,10 +250,16 @@ function edit() {
 			step=$(trimCr "$(jq -r ".settings.$settingId.step"  "data/system.json")")
 			if [[ "${newValue}" =~ [^0-9\.] ]]; then
 				printf "${RED_BOLD}Failed to apply the changes: this setting require a number${RESET}\n"
-				return 1
-			elif [[ "$(awk -v newValue="$newValue" -v step="$step" 'BEGIN {print (newValue + step)}')" =~ \. ]]; then
+				log "ERROR" "settings.sh:edit" "Check failed, invalid value"
+				return 2
+			elif awk "BEGIN {exit !($newValue > $max)}" || awk "BEGIN {exit !($newValue < $min)}"; then
+				printf "${RED_BOLD}Failed to apply the changes: this setting is not contained between the minimum \"%s\" and the maximum \"%s\"${RESET}\n" "$min" "$max"
+				log "ERROR" "settings.sh:edit" "Check failed, new value not contained between \"%s\" and \"%s\"" "$min" "$max"
+				return 2
+			elif [[ "$(awk "BEGIN {print ($newValue + $step)}")" =~ \. ]]; then
 				printf "${RED_BOLD}Failed to apply the changes: the number doesn't respect the step \"%s\"${RESET}\n" "$step"
-				return 1
+				log "ERROR" "settings.sh:edit" "Check failed, value does not respect the step \"%s\"" "$step"
+				return 2
 			fi
 		;;
 		"string")
@@ -261,6 +276,7 @@ function edit() {
 			done < <(jq -r ".settings.$settingId.enum[].id" "data/system.json")
 			if ! $isDone; then
 				printf "${RED_BOLD}Failed to apply the changes: The entered choice does not correspond to any predefined options, type \"settings fetch %s\"${RESET}\n" "$settingId"
+				log "ERROR" "settings.sh:edit" "Check failed, value does not correspond to any predefined settings"
 				return 1
 			fi
 		;;
@@ -273,6 +289,7 @@ function edit() {
 			elif $mustExist; then
 				if ! [ -f "$newValue" ]; then
 					printf "${RED_BOLD}Failed to apply the changes: this file need to exist before being set. Create it and retry${RESET}\n"
+					log "ERROR" "settings.sh:edit" "Check failed, file does not exist"
 					return 1
 				fi
 			fi
@@ -285,10 +302,12 @@ function edit() {
 			elif $mustExist; then
 				if ! [ -d "$newValue" ]; then
 					printf "${RED_BOLD}Failed to apply the changes: this directory need to exist before being set. Create it and retry${RESET}\n"
+					log "ERROR" "settings.sh:edit" "Check failed, directory does not exist"
 					return 1
 				fi
 			fi
 	esac
+	log "DEBUG" "settings.sh:edit" "Finished checking requirements"
 
 	getOptionalValues
 	if $protectedEdit; then
@@ -299,6 +318,7 @@ function edit() {
 		fi
 	elif $isProtected; then
 		printf "${RED_BOLD}Failed to apply the changes: you are writing a protected value, please use \"settings pedit\"${RESET}\n"
+		log "ERROR" "settings.sh:edit" "Failed to write the value. The setting is protected"
 		return 1
 	else
 		writeSettingsValue "$settingId" "$newValue"
@@ -325,8 +345,9 @@ function reset() {
 	settingId=$1
 	if [ "$(jq -r ".settings.$settingId" "data/system.json")" == "null" ]; then
 		printf "${RED_BOLD}The entered setting does not exist, use \"settings list\"${RESET}\n"
-		return 1
+		return 2
 	fi
+	log "INFO" "settings.sh:edit" "Resetting $settingId..."
 	default=$(jq -r ".settings.$settingId.default" "data/system.json")
 	getOptionalValues
 	
@@ -340,15 +361,17 @@ function reset() {
 
 function init() {
 	if [[ -n $AreSettingsInited ]]; then
+		log "ERROR" "settings.sh:init" "attempted to call settings.sh:init a 2nd time"
 		printf "${RED_BOLD}\"settings init\" is a command reserved for the launcher's bootstraper, please don't run it as a user${RESET}\n"
-	else
-		AreSettingsInited="Yh it's done"
 	fi
 	local currentSettingsVersion="0.0.1"
+	log "INFO" "settings.sh:init" "Started loading settings. Compatible version is $currentSettingsVersion"
 	if ! [[ -f "data/system.json" ]]; then
+		log "FATAL" "settings.sh:init" "system.json was not found. Crash imminent"
 		# shellcheck disable=SC2154 disable=SC1091
 		source "$SHdir/crashHandler.sh" SETT_LOAD_FAIL
 	elif ! [[ -f "data/user.json" ]]; then
+	log "WARN" "settings.sh:init" "No user settings file found. creating..."
 		printf "No user setting file detected, creating...\n"
 		jq -n --arg SettingsVersion "$currentSettingsVersion" \
 		'{
@@ -356,11 +379,13 @@ function init() {
 			"type": "user",
 			"settings": {}
 		}' > data/user.json
+		log "WARN" "settings.sh:init" "restarting settings.sh:init"
 		init
-
 	elif [ "$(jq -r '.settingsVersion' "data/system.json")" != "$currentSettingsVersion" ]; then
+		log "FATAL" "settings.sh:init" "Encountered an unsupported version $(jq -r '.settingsVersion' "data/user.json"), cannot continue"
 		printf "${YELLOW_BOLD}[BUG]${YELLOW} Unsupported setting version %s, not continuing\n${RESET}" "$(jq -r '.settingsVersion' "data/user.json")"
-		return 1
+		# shellcheck disable=SC2154 disable=SC1091
+		source "$SHdir/crashHandler.sh" SETT_LOAD_FAIL
 	else
 		while IFS=$'\n' read -r object; do
 			read -r key < <(jq -r '.key' \
@@ -368,14 +393,19 @@ function init() {
 				$object
 				EOF
 				)
+			log "DEBUG" "settings.sh:init" "Found key \"$key\""
 			if [ "$(jq -r ".settings.$key" "data/user.json")" == "null" ]; then
+				log "INFO" "settings.sh:init" "$key seem to not exist in the user settings file, applying default"
 				writeSettingsValue "$key" "$(jq -r ".settings.$key.default" "data/system.json")"
 			else
 				IFS= read -r value < <(jq -r ".settings.$key" "data/user.json")
 				Sett["$key"]=$value
+				log "DEBUG" "settings.sh:init" "Applying value \"$value\" for key \"$key\""
 			fi
 		done < <(jq -c '.settings | to_entries[]' "data/system.json")
 		export Sett
+		AreSettingsInited="Yh it's done"
+		log "DEBUG" "settings.sh:init" "Finished loading settings"
 	fi
 }
 
@@ -444,7 +474,10 @@ declareArgs all a flag
 if ! globalArgHandler "$@"; then
 	return 1
 fi
+
 # shellcheck disable=SC2154
+log "INFO" "settings.sh" "settings.sh called with instructions ${instructions[*]}"
+
 argHandler "${instructions[@]}"
 
 unset parameter

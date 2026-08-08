@@ -748,13 +748,15 @@ list() {
 		"b4" | "b4release")
 			if [ "$modloader" != "vanilla" ]; then
 				printf "${YELLOW}Using a modded instance for alpha and beta version of the game is unsupported"
-				return 1
+				return 2
 			fi
 			printf -- "|=============================|\n"
 			printf "| %-12s | %-12s |\n" "VERSION" "TYPE"
 			printf -- "|-----------------------------|\n"
 			while read -r id type; do
+				id=$(trimCr "$type")
 				type=$(trimCr "$type")
+				log "DEBUG" "version.sh:list" "Checking version \"$id\""
 				if [ "$toGrep" == "" ]; then
 					printf "| %-12s | %-12s |\n" "$id" "$type"
 				else
@@ -768,6 +770,7 @@ list() {
 			cd "$SHdir/versions" || return 1
 			if [ "$(ls)" == "" ]; then printf "${YELLOW}No versions are installed yet${RESET}\n";return 1; fi
 			for vers in *.json; do
+				log "DEBUG" "version.sh:list" "Checking version \"$vers\""
 				read -r name versionType runtime assetIndex currentModloader <<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.assetIndexId?) \(.modloader)"' "$vers")"
 				if [ "$currentModloader" = "null" ]; then currentModloader="vanilla"; fi
 				if [ "$currentModloader" = "$modloader" ]; then
@@ -787,14 +790,17 @@ list() {
 		;;
 		"latest")
 			if [ "$modloader" == "vanilla" ]; then
-				printf -- "|=============================|\n"
-				printf "| %-12s | %-12s |\n" "VERSION" "TYPE"
-				printf -- "|-----------------------------|\n"
-				while read -r id type; do
-					type=$(trimCr "$type")
-					printf "| %-12s | %-12s |\n" "$id" "$type"
-				done < <(jq -r '.versions[] | select(.type == "release" and .id == "'"$(jq -r '.latest.release' ./SHlauncher/vanilla_version_manifest.json)"'") | "\(.id) \(.type)"' ./SHlauncher/vanilla_version_manifest.json)
-				printf -- "|=============================|\n"
+				printf -- "|================================|\n"
+				printf "| %-15s | %-12s |\n" "VERSION" "TYPE"
+				printf -- "|--------------------------------|\n"
+				while IFS= read -r object; do
+					IFS='|' read -r type id < <(jq -r '"\(.key)|\(.value)"' <<- EOF
+					$object
+					EOF
+					)
+					printf "| %-15s | %-12s |\n" "$id" "$type"
+				done < <(jq -c '.latest | to_entries[]' "$SHdir/vanilla_version_manifest.json")
+				printf -- "|================================|\n"
 			else
 				printf "${YELLOW}Viewing the latest modded version per minecraft version is currently unsupported${RESET}\n"
 			fi
@@ -805,6 +811,7 @@ list() {
 			printf "| %-12s | %-12s |\n" "VERSION" "TYPE"
 			printf -- "|-----------------------------|\n"
 			while read -r id type; do
+				log "DEBUG" "version.sh:list" "Checking version \"$id\""
 				type=$(trimCr "$type")
 				if [ "$toGrep" == "" ]; then
 					printf "| %-12s | %-12s |\n" "$id" "$type"
@@ -820,6 +827,7 @@ list() {
 				printf "| %-12s | %-12s |\n" "VERSION" "TYPE"
 				printf -- "|-----------------------------|\n"
 				while read -r id type; do
+					log "DEBUG" "version.sh:list" "Checking version \"$id\""
 					type=$(trimCr "$type")
 					if [ "$toGrep" == "" ]; then
 						printf "| %-12s | %-12s |\n" "$id" "$type"
@@ -837,6 +845,7 @@ list() {
 				for (( i=0; i<${#content[@]}; i++ )); do
 					content[i]=$(trimCr "${content[$i]}")
 					IFS='.' read -ra versPart <<< "${content[i]}"
+					log "DEBUG" "version.sh:list" "Checking version \"${versPart[*]}\""
 					if [[ "${versPart[-1]}" =~ beta ]]; then
 						versType="beta"
 						#versPart[-1]=${versPart[-1]//'-beta'/}
@@ -851,15 +860,19 @@ list() {
 					if [ "$versType" == "snapshot_alpha" ]; then
 						mcVers="${versPart[0]}.${versPart[1]}.${versPart[2]}"
 						modlVers="${versPart[3]}"
+						log "DEBUG" "version.sh:list" "Resolved version to pattern <0>.<1>.<2> <3>"
 					elif [ "${#versPart[@]}" -eq 4 ]; then
 						mcVers="${versPart[0]}.${versPart[1]}.${versPart[2]}"
 						modlVers=${versPart[3]}
+						log "DEBUG" "version.sh:list" "Resolved version to pattern <0>.<1>.<2> <3>"
 					elif [ "${#versPart[@]}" -lt 2 ]; then
 						printf "${YELLOW_BOLD}[BUG] Invalid version read from neoforge's manifest, skipping %s${RESET}\n" "${versPart[$@]}"
+						log "ERROR" "version.sh:list" "Invalid version \"${versPart[*]}\", skipping"
 						continue
 					else
 						mcVers="1.${versPart[0]}.${versPart[1]}"
 						modlVers=${versPart[2]}
+						log "DEBUG" "version.sh:list" "Resolved version to pattern 1.<0>.<1> <2>"
 					fi
 					if [ "$toGrep" == "" ]; then
 						printf "| %-12s | %-23s | %-15s |\n" "$mcVers" "$modlVers" "$versType"
@@ -877,6 +890,7 @@ list() {
 				printf "| %-12s | %-15s |\n" "VERSION" "TYPE"
 				printf -- "|--------------------------------|\n"
 				while read -r id type; do
+					log "DEBUG" "version.sh:list" "Checking version \"$id\""
 					type=$(trimCr "$type")
 					if [ "$toGrep" == "" ]; then
 						printf "| %-12s | %-15s |\n" "$id" "$type"
@@ -906,17 +920,21 @@ list() {
 					if $isSnapshotAlpha; then
 						mcVers="${versPart[0]}.${versPart[1]}.${versPart[2]}"
 						modlVers=${versPart[3]}
+						log "DEBUG" "version.sh:list" "Resolved version to pattern <0>.<1>.<2> <3>"
 						versType="snapshot_alpha"
 					elif [ "${#versPart[@]}" -eq 4 ]; then
 						mcVers="${versPart[0]}.${versPart[1]}.${versPart[2]}"
 						modlVers=${versPart[3]}
+						log "DEBUG" "version.sh:list" "Resolved version to pattern <0>.<1>.<2> <3>"
 						versType="release"
 					elif [ "${#versPart[@]}" -lt 2 ]; then
 						printf "${YELLOW_BOLD}[BUG] Invalid version read from neoforge's manifest, skipping %s${RESET}\n" "${versPart[$@]}"
+						log "ERROR" "version.sh:list" "Invalid version \"${versPart[*]}\", skipping"
 						continue
 					else
 						mcVers="1.${versPart[0]}.${versPart[1]}"
 						modlVers=${versPart[2]}
+						log "DEBUG" "version.sh:list" "Resolved version to pattern 1.<0>.<1> <2>"
 						versType="release"
 					fi
 					if [ "$toGrep" == "" ]; then
@@ -938,9 +956,9 @@ list() {
 function remove() {
 	targetVers=$1
 	modlVers=$2
-
 	if [ "$modloader" = "vanilla" ]; then
 		if [[ -d "./versions/$targetVers" ]]; then
+			log "INFO" "version.sh:remove" "Deleting version $targetVers"
 			printf "${RED}Deleting version %s, you can reinstall it by executing the command \"version install %s\"${RESET}\n" "$targetVers" "$targetVers"
 			printf "${RED}Please note that modded versions of the game usually relies on vanilla versions to work properly${RESET}\n" "$targetVers" "$targetVers"
 			printf "${YELLOW}Note, the libraries and the assets used by this version are not deleted as they can be used for other versions as well${RESET}\n"
@@ -955,6 +973,7 @@ function remove() {
 		trunkMcVers=$(echo "$targetVers" | sed 's/^1\.//')
 		fullModLoaderVers="${trunkMcVers}.${modlVers}"
 		if [[ -d "./versions/neoforge-$fullModLoaderVers" ]]; then
+			log "INFO" "version.sh:remove" "Deleting version $fullModLoaderVers"
 			printf "${RED}Deleting version neoforge-%s, you can reinstall it by executing the command \"version install neoforge %s %s\"${RESET}\n" "$fullModLoaderVers" "$targetVers" "$modlVers"
 			printf "${YELLOW}Note, the libraries and the assets used by this version are not deleted as they can be used for other versions as well${RESET}\n"
 			command -p rm -r -- "./versions/neoforge-$fullModLoaderVers"
@@ -1009,9 +1028,10 @@ function Main() {
 }
 
 mkdir -p "$MCdir/versions"
-mkdir -p "$SHdir/versions"
 mkdir -p "$MCdir/libraries"
 mkdir -p "$MCdir/natives"
+
+mkdir -p "$SHdir/versions"
 mkdir -p "$SHdir/log4jconf"
 osname="linux"
 sep=":"
@@ -1050,6 +1070,8 @@ case $modloader in
 		printf "${RED}Unknown modloader, the supported modloaders are Vanilla, Forge, Fabric, Neoforge and Quilt${RESET}\n"
 		return 1
 esac
+
+log "INFO" "version.sh" "version.sh called with instructions ${instructions[*]}"
 
 Main "${instructions[@]}"
 

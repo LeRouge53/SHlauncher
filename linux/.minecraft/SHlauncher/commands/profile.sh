@@ -38,12 +38,15 @@ function helpPage() {
 	printf "remove <username> : delete the profile corresponding to the username\n"
 }
 
+log "INFO" "profile.sh" "instance.sh called with instructions $*"
+
 case $1 in
 	"list")
 		if [ "$(ls)" == "" ]; then
 			printf "${YELLOW}No profiles were set up (yet!)${RESET}\n"
 		else
 			for Fprof in *.json; do
+				log "INFO" "profile.sh:list" "Checking profile \"$Fprof\""
 				printf "${BLUE}%s :${RESET}\n" "$(jq -r '.name' "$Fprof")"
 				echo " - UUID: $(jq -r .uuid "$Fprof")"
 			done
@@ -54,11 +57,12 @@ case $1 in
 		if [ "$usrn" == "" ]; then echo "Require a username as 3rd parameter; type \"profile help\""; fi
 		if ! [[ "$usrn" =~ ^[A-Za-z0-9_]{3,16}$ ]]; then #bro wtf ?
 			printf "${RED_BOLD}Invalid username: The username need to be between 3 to 16 character long and can only contain letters, numbers, \"-\" and \"_\"${RESET}\n"
-			return 1
+			return 2
 		elif [ "$usrn" == "None" ]; then
 			printf "${RED_BOLD}The name of this profile can't be \"None\", please use another name${RESET}\n"
-			return 1 
+			return 2
 		else
+			log "INFO" "profile.sh:create" "Creating profile \"$usrn\" \"$(UUIDcalc "$usrn")\""
 			echo "creating profile with username: \"$usrn\" and UUID: \"$(UUIDcalc "$usrn")\""
 			echo '{"name":"'"$usrn"'" , "isOnline":false , "uuid":"'"$(UUIDcalc "$usrn")"'" , "tuuid":"'"$(trimmedUUIDcalc "$usrn")"'"}' | jq . > "$(UUIDcalc "$usrn")".json
 		fi
@@ -71,6 +75,7 @@ case $1 in
 			currentUsrn=$(jq -r '.name' "$Fprof")
 			if [ "$usrn" == "$currentUsrn" ]; then
 				writeSettingsValue SelectedProfile "$(jq -r '.uuid' "$Fprof")"
+				log "INFO" "profile.sh:select" "New profile is \"$usrn\" with uuid \"$Fprof\""
 				SetColor
 				isDone=true
 			fi
@@ -84,9 +89,11 @@ case $1 in
 		for Fprof in *.json; do
 			currentUsrn=$(jq -r '.name' "$Fprof")
 			if [ "$usrn" == "$currentUsrn" ]; then
+				log "WARN" "profile.sh:delete" "Deleting profile \"$usrn\" with uuid \"$Fprof\""
 				command -p rm -- "$(jq -r '.uuid' "$Fprof")".json
 				if [ "$usrn" == "$profile" ]; then 
 					writeSettingsValue SelectedProfile None
+					log "INFO" "profile.sh:delete" "New profile is \"None\""
 				fi
 				SetColor
 				isDone=true
@@ -95,6 +102,7 @@ case $1 in
 		if ! $isDone; then echo "The specified profile \"$usrn\" does not exist"; fi
 	;;
 	"reset")
+		log "INFO" "profile.sh:reset" "New profile is \"None\""
 		writeSettingsValue SelectedProfile None
 		SetColor
 	;;

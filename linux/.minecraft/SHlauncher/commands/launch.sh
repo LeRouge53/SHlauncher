@@ -5,11 +5,13 @@ touch .lastLaunchedGame
 
 substitute_arg() {
 	local arg="$1"
-
+	local oldArg=$arg
 	if [ "$arg" == "" ]; then
 		printf "${YELLOW_BOLD}[BUG] function substituteArg require 1 entry argument, but none were ever passed${RESET}\n" >&2
 		return 1
 	fi
+
+	log "DEBUG" "launch.sh:substitute_arg" "Resolving \"$oldArg\""
 	arg=$(trimCr "$arg")
 
 	arg="${arg//'${natives_directory}'/$nativesDir}"
@@ -36,6 +38,7 @@ substitute_arg() {
 	arg="${arg//'${user_type}'/msa}"
 	arg="${arg//'${version_type}'/$versionType}"
 
+	log "DEBUG" "launch.sh:substitute_arg" "Resolved \"$oldArg\" into \"$arg\""
 	printf '%s\n' "$arg"
 }
 
@@ -49,6 +52,7 @@ function launch() {
 			printf "launchProf: %s\n" "$launchProf" >&2
 			printf "launchInst: %s${RESET}\n" "$launchInst" >&2
 	esac
+	log "INFO" "launch.sh:launch" "Launching game with profile \"$launchProf\" and instance \"$launchInst\""
 	printf "${BLUE_BOLD}Building command...${RESET}\n"
 	
 	jsonInstance=$(jq -r '.versionProfile' "$SHdir/instances/$launchInst.json")
@@ -86,6 +90,7 @@ function launch() {
 	for Fprof in ./SHlauncher/profiles/*.json; do
 		if [ "$(jq -r '.name' "$Fprof")" == "$launchProf" ]; then
 			tuuid=$(jq -r '.tuuid' "$Fprof")
+			log "DEBUG" "launch.sh:launch" "profile truncated UUID is \"$tuuid\""
 		fi
 	done
 	if [ "$java" == "default" ]; then
@@ -100,6 +105,7 @@ function launch() {
 	for arg in "${jvmArgs[@]}"; do
 		finalJvmArgs+=("$(substitute_arg "$arg")")
 	done
+	log "DEBUG" "launch.sh:launch" "finalJVMArgs : ${finalJvmArgs[*]}"
 
 	finalGameArgs=()
 	if [ "$modloader" != "vanilla" ]; then gameArgs+=("${moddedGameArgs[@]}"); fi
@@ -107,15 +113,17 @@ function launch() {
 		finalGameArgs+=("$(substitute_arg "$arg")")
 	done
 	finalGameArgs+=("${customGameArgs[@]}")
+	log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
 	
 	printf "${BLUE_BOLD}Finished building command, launching game...${RESET}\n"
 	if ! "$java" -version &>/dev/null; then
 		printf "${YELLOW}The required java version is not installed, please install java $runtime using \"java install $runtime\"${RESET}\n"
+		log "ERROR" "launch.sh:launch" "Failed to launch the game, required java not installed"
 		return 1
 	fi
 
 	# IT'S BOOTING (WE ARE BO-BO-BO-BOOOOTIIIIIIIIIIIING)
-
+	log "INFO" "launch.sh:launch" "All check completed, launching game!"
 	if echo "${finalJvmArgs[@]}" | grep -q "$mainClass"; then
 		echo "${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}" > .lastLaunchedGame
 		"${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}"
@@ -127,6 +135,7 @@ function launch() {
 
 	unset -v modloader
 
+	log "INFO" "launch.sh:launch" "Game returned with exit code $exitCode"
 	if [ "$exitCode" -ne 0 ]; then
 		echo ""
 		printf "${RED_BOLD}The game crashed or did not returned successfully (exit code %s)! Check the crash-report or the log file for more info${RESET}\n" "$exitCode"
@@ -181,7 +190,8 @@ function argHandler() {
 				printf "${RED_BOLD}The profile or the instance is missing, cannot launch${RESET}\n"
 				printf "${RED}Entered profile : %s\n" "$launchProf"
 				printf "Entered instance : %s${RESET}\n" "$launchInst"
-				return 1
+				log "ERROR" "launch.sh" "Failed to launch the game : some required parameters are missing"
+				return 2
 			fi
 			launch "$launchProf" "$launchInst"
 		;;
@@ -192,5 +202,7 @@ function argHandler() {
 
 customLaunchProf=false
 customLaunchInst=false
+
+log "INFO" "launch.sh" "launch.sh called with instructions ${instructions[*]}"
 
 argHandler "$@"

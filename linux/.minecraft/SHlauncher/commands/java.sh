@@ -24,20 +24,24 @@ function install() {
 	fi
 	case $version in
 		"8" | "16" | "17" | "21" | "25")
+			log "INFO" "java.sh:install" "Requested download of $imageType $version"
 			if [[ -d "$versionDir/" ]] && ${parameter[reinstall]}; then
 				command -p rm -rf -- "${version:?}"
+				log "WARN" "java.sh:install" "Deleting java $version for reinstallation"
 			elif [[ -d "$versionDir/" ]]; then
 				printf "${YELLOW}This version seem to be already installed, Use \"-r\" to reinstall the target version${RESET}\n"
+				log "WARN" "java.sh:install" "Failed to install, version already exist"
 				return 1
 			fi
 			if [ "$version" == 16 ]; then
-				printf "${YELLOW}Warning, the selected version (16) is only avariable as JDK${RESET}\n"
+				printf "${YELLOW}Warning, the selected version (16) is only available as JDK${RESET}\n"
 				imageType="jdk"
 			fi
 			printf "${BLUE_BOLD}Downloading target java...${RESET}\n"
 			url=https://api.adoptium.net/v3/binary/latest/"${version}"/ga/"$(detect_os)"/"$(detect_arch)"/"${imageType}"/hotspot/normal/eclipse
 			if ! curl -L --retry 5 --retry-delay 2 -s "$url" -o ./temp_archive.tar.gz; then
 				printf "${RED}Failed to download Java, please try to download manually \"$url\" to get a more precise error${RESET}\n"
+				log "ERROR" "Failed to download Java, download failed. URL is \"$url\""
 			fi
 
 			printf "${BLUE_BOLD}Unpacking archive...${RESET}\n"
@@ -45,9 +49,11 @@ function install() {
 			tar xzf ./temp_archive.tar.gz -C "$version" --strip-components=1
 			if "$versionDir/bin/java" -version; then
 				printf "${GREEN_BOLD}Installation successful${RESET}\n"
+				log "INFO" "java.sh:install" "Install was successful"
 				command -p rm ./temp_archive.tar.gz
 			else
 				printf "${RED_BOLD}Installation seemed to have failed,${RESET} if you have any issues, retry with \"-r\"\n"
+				log "INFO" "java.sh:install" "Install seem to have failed, \"$versionDir/bin/java\" seems not to exist"
 				command -p rm ./temp_archive.tar.gz
 				return 1
 			fi
@@ -99,6 +105,7 @@ function argHandler() {
 			case $2 in
 				"8" | "16" | "17" | "21" | "25")
 				if [ -d "$SHdir/java/$2/" ]; then
+					log "WARN" "java.sh:remove" "Deleting java version $2"
 					command -p rm -r -- "$SHdir/java/$2/"
 				else
 					printf "${YELLOW}The selected java version is not installed${RESET}\n"
@@ -120,7 +127,7 @@ function argHandler() {
 			list
 		;;
 		*)
-			printf "${RED_BOLD}Unregonized option: %s${RESET}\n" "$1"
+			printf "${RED_BOLD}Unrecognized option: %s${RESET}\n" "$1"
 	esac
 }
 # shellcheck disable=SC2154
@@ -142,6 +149,9 @@ if ${parameter[jdk]}; then
 else
 	imageType="jre"
 fi
+
+# shellcheck disable=SC2154
+log "INFO" "java.sh" "java.sh called with instructions ${instructions[*]}"
 
 # shellcheck disable=SC2154
 argHandler "${instructions[@]}"

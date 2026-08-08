@@ -6,6 +6,7 @@ function list() {
 		printf "${YELLOW}No Instances were set up (yet!)${RESET}\n"
 	else
 		for Finst in *.json; do
+			log "DEBUG" "settings.sh:list" "Checking instance \"${Finst}\""
 			IFS='|' read -r name version modloader gameDir java MinRam MaxRam modloaderVersion <<< "$(jq -r '"\(.name)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$Finst")"
 			mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$Finst")
 			mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
@@ -99,12 +100,14 @@ function create() {
 			return 1
 	esac
 
+	log "INFO" "instance.sh:create" "Requested creation of instance \"$name\" with modloader \"$modloader\" and version $version $modloaderVersion"
 	echo "creating instance $name with modloader $modloader and version $version $modloaderVersion"
 	if [ "$modloader" == "vanilla" ]; then
 		versionProfile="$version"
 	else
 		versionProfile="$modloader-$fullModLoaderVers"
 	fi
+	log "DEBUG" "instance.sh:create" "Resolved versionProfile to \"$versionProfile\""
 
 	if ${parameter[anotherGameDir]}; then
 		# shellcheck disable=SC2154 # il l'est
@@ -148,6 +151,7 @@ function create() {
 function sel() {
 	name=$1
 	if ! [[ -f "$name.json" ]]; then echo "The selected Instance \"$name\" does not exist"; return 1; fi
+	log "INFO" "instance.sh:sel" "New instance is \"$name\""
 	writeSettingsValue SelectedInstance "$name"
 	SetColor
 }
@@ -155,6 +159,7 @@ function sel() {
 function delete() {
 	name=$1
 	if ! [[ -f "$name".json ]]; then echo "The selected Instance \"$name\" does not exist"; return 1; fi
+	log "WARN" "instance.sh:delete" "Deleting instance $name"
 	command -p rm -- "$name.json"
 	if [ "${Sett[SelectedInstance]}" == "$name" ]; then
 		writeSettingsValue SelectedInstance None
@@ -163,6 +168,7 @@ function delete() {
 }
 
 function reset() {
+	log "INFO" "instance.sh:reset" "New instance is \"None\""
 	writeSettingsValue SelectedInstance None
 	SetColor
 }
@@ -230,6 +236,8 @@ fi
 if [[ -n ${parameter[customGameDir]} ]]; then
 	parameter[anotherGameDir]=false
 fi
+
+log "INFO" "settings.sh" "instance.sh called with instructions ${instructions[*]}"
 
 # shellcheck disable=SC2154
 Main "${instructions[@]}"

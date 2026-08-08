@@ -4,21 +4,21 @@
 function terminate() {
 	history -w
 	history -c
-	HISTFILE="$HOME/.bash_history" # à remplacer par un système de backup
+	HISTFILE="$HOME/.bash_history"
 	history -r
 	set +x
 }
-
+log "FATAL" "crashHandler.sh" "crashHandler called with code $1"
 printf "${RED}SHlauncher has crashed! :${RESET}\n"
 case $1 in 
 	"CD_FAIL")
 		echo " The launcher failed to start due to a working directory switch error."
-		echo " - It could be due to issuficient authorisations, an incomplete installation or issues with the disk."
+		echo " - It could be due to insufficient authorizations, an incomplete installation or issues with the disk."
 		terminate
 		exit 2
 	;;
 	"SIGINT")
-		echo " Recieved SIGINT (signal 2), forced to terminate."
+		echo " Received SIGINT (signal 2), forced to terminate."
 		echo " - Do not press control+C"
 		terminate
 		exit 130

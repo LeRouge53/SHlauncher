@@ -2,17 +2,25 @@
 # shellcheck disable=SC2059
 # shellcheck disable=SC2154
 
-cd ./commands || ./crashHandler.sh CDFAIL
+log "DEBUG" "core.sh" "Core.sh successfully called. Starting..."
 
-if [ "$(tput cols)" -lt 150 ] && ${Sett[ShowTerminalSizeWarning]}; then
-	printf "${YELLOW}It is not recommended to use SHlauncher with a terminal containing less than 150 columns${RESET}\n"
-	printf "${YELLOW}Please use a bigger terminal if possible${RESET}\n"
+cd "$SHdir/commands" || "$SHdir/crashHandler.sh" CDFAIL
+
+if [ "$(tput cols)" -lt 150 ]; then
+	log "WARN" "core.sh" "Bad terminal size detected, $(tput cols) may be too small"
+	if ${Sett[ShowTerminalSizeWarning]}; then
+		printf "${YELLOW}It is not recommended to use SHlauncher with a terminal containing less than 150 columns${RESET}\n"
+		printf "${YELLOW}Please use a bigger terminal if possible${RESET}\n"
+	fi
 fi
 
-if [ "${Sett[SelectedProfile]}" == "None" ]; then 
+log "DEBUG" "core.sh" "Started loading display profile"
+if [ "${Sett[SelectedProfile]}" == "None" ]; then
+	log "WARN" "core.sh" "Display profile was resolved to None"
 	DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
 else
 	profile=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json")
+	log "INFO" "core.sh" "Display profile was resolved to \"$profile\""
 	if jq -e '.isOnline' "$SHdir/profiles/${Sett[SelectedProfile]}.json" &>/dev/null; then \
 		DispProf="${RL_START}${BLUE}${RL_END}${profile}${RL_START}${RESET}${RL_END}"
 	else
@@ -20,20 +28,27 @@ else
 	fi
 fi
 
+log "DEBUG" "core.sh" "Started loading display instance"
 if [ "${Sett[SelectedInstance]}" == "None" ]; then 
 	DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
+	log "WARN" "core.sh" "Display instance was resolved to None"
 else
 	DispInst="${RL_START}${GREEN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
+	log "INFO" "core.sh" "Display profile was resolved to \"${Sett[SelectedInstance]}\""
 fi
 
 lastCommandLine=""
+log "INFO" "core.sh" "Entering shell loop!"
 while true; do
-	cd "$SHdir/commands" || ./crashHandler.sh CDFAIL
+	cd "$SHdir/commands" || source "$SHdir/crashHandler.sh" CD_FAIL
 	IFS=$IFSBak
+	log "INFO" "core.sh" "Displaying shell"
 	read -erp "SHlauncher ${DispProf}:${DispInst}> " commandLine
 	commandLine=$(trimCr "$commandLine")
+	log "DEBUG" "core.sh" "Command line is \"$commandLine\""
 	if [[ "$commandLine" =~ [\;\&\|\>\<\`\$\(\)\*] ]] && $cip; then
-		printf "${RED_BOLD}Command injection protection is on, usage of special characters \" ;  &  |  >  <  \`  $  (  ) * \" is forbidden${RESET}\n"
+		log "ERROR" "core.sh" "Caught special characters by CIP command injection protection"
+		printf "${RED_BOLD}Command injection protection is active, usage of special characters \" ;  &  |  >  <  \`  $  (  ) * \" is forbidden${RESET}\n"
 		continue
 	fi
 	if [ "$commandLine" != "" ] || [ "$lastCommandLine" != "$commandLine" ]; then
@@ -97,8 +112,14 @@ while true; do
 		"echo")
 			echo "$@"
 		;;
+		"log")
+			logLevel=$1
+			source=$2
+			shift 2
+			log "$logLevel" "$source" "$*"
+		;;
 		"")
-			true # pas une erreur tkt
+			true
 		;;
 		*)
 			echo "Unknown command: $cmd"

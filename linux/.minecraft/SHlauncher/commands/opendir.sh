@@ -7,6 +7,8 @@ function helpPage() {
 	printf "To actually use \"help\" as an instance name, type \"\\help\" instead\n"
 }
 
+log "INFO" "opendir.sh" "opendir.sh called with instructions ${instructions[*]}"
+
 targetInst=$1
 if [ "$targetInst" = "" ]; then
 	# shellcheck disable=SC2154
@@ -27,4 +29,5 @@ elif ! [[ -f "$SHdir/instances/$targetInst.json" ]]; then
 fi
 
 path=$(jq -r '.gameDir' "$SHdir/instances/$targetInst.json")
+log "INFO" "opendir.sh" "Opening directory \"$path\" linked to instance \"$targetInst\""
 xdg-open "$path"
