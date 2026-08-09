@@ -26,8 +26,6 @@ Please note that the launcher is not POSIX-compliant. It only support bash. This
 
 This list is sorted in the order in which I would like to create them
 
-- **Better logging system** : although there IS a logging system, it isn't perfect and I want to rework it
-
 - **More modloader support** : I want to add fabric to the launcher (forge and quilt will come afterwards)
 
 - **Server support** : Yes, the launcher doesn't support servers yet
