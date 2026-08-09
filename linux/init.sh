@@ -163,7 +163,7 @@ function argHandler() {
 }
 argHandler "$@"
 
-command -p rm "$SHlogFile"
+command -p rm "$SHlogFile" &>/dev/null
 log "DEBUG" "init.sh" "Core directory resolved to $dir"
 log "INFO" "init.sh" "Starting $SHlname, version $SHlvers, debug mode: $debug, verbose mode: $verbose, cip: $cip, portable mode: $portable"
 

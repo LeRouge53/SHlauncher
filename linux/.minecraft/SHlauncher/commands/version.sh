@@ -154,7 +154,7 @@ function install() {
 		"vanilla")
 			echo "Starting download..."
 			log "INFO" "version.sh:install" "Requested download of version $targetVers"
-			url="$(jq -r '.versions[] | select(.id == "'"$targetVers"'") | .url' ./SHlauncher/vanilla_version_manifest.json)"
+			url="$(jq -r '.versions[] | select(.id == "'"$targetVers"'") | .url' "$SHdir/manifests/vanilla_version_manifest.json")"
 			mkdir -p "$versDir/$targetVers"
 			if [ "$url" == "" ]; then
 				printf "${RED}Invalid version, type \"version list\" to list all version available${RESET}\n"
@@ -808,7 +808,7 @@ list() {
 				else
 					printf "| %-12s | %-12s |\n" "$id" "$type" | grep "$toGrep"
 				fi
-			done < <(jq -r '.versions[] | select(.type == "old_alpha" or .type == "old_beta") | "\(.id) \(.type)"' ./SHlauncher/vanilla_version_manifest.json)
+			done < <(jq -r '.versions[] | select(.type == "old_alpha" or .type == "old_beta") | "\(.id) \(.type)"' "$SHdir/manifest/vanilla_version_manifest.json")
 			printf -- "|=============================|\n"
 			unset -v toGrep
 		;;
@@ -864,7 +864,7 @@ list() {
 				else
 					printf "| %-12s | %-12s |\n" "$id" "$type" | grep "$toGrep"
 				fi
-			done < <(jq -r '.versions[] | select(.type == "snapshot") | "\(.id) \(.type)"' ./SHlauncher/vanilla_version_manifest.json)
+			done < <(jq -r '.versions[] | select(.type == "snapshot") | "\(.id) \(.type)"' "$SHdir/manifests/vanilla_version_manifest.json")
 			printf -- "|=============================|\n"
 		;;
 		"all")
@@ -880,13 +880,13 @@ list() {
 					else
 						printf "| %-12s | %-12s |\n" "$id" "$type" | grep "$toGrep"
 					fi
-				done < <(jq -r '.versions[] | "\(.id)  --  \(.type)"' ./SHlauncher/vanilla_version_manifest.json)
+				done < <(jq -r '.versions[] | "\(.id)  --  \(.type)"' "$SHdir/manifest/vanilla_version_manifest.json")
 				unset -v toGrep
 			elif [ "$modloader" == "neoforge" ]; then
 				printf -- "|==========================================================|\n"
 				printf "| %-12s | %-23s | %-15s |\n" "VERSION" "MODLOADER VERSION" "TYPE"
 				printf -- "|----------------------------------------------------------|\n"
-				mapfile -t content < <(jq -r '.[]' "./SHlauncher/neoforge_version_manifest.json")
+				mapfile -t content < <(jq -r '.[]' "$SHdir/manifests/neoforge_version_manifest.json")
 
 				for (( i=0; i<${#content[@]}; i++ )); do
 					content[i]=$(trimCr "${content[$i]}")
@@ -943,14 +943,14 @@ list() {
 					else
 						printf "| %-12s | %-15s |\n" "$id" "$type" | grep "$toGrep"
 					fi
-				done < <(jq -r '.versions[] | select(.type == "release") | "\(.id) \(.type)"' ./SHlauncher/vanilla_version_manifest.json)
+				done < <(jq -r '.versions[] | select(.type == "release") | "\(.id) \(.type)"' "$SHdir/manifests/vanilla_version_manifest.json")
 				printf -- "|================================|\n"
 				unset -v toGrep
 			elif [ "$modloader" == "neoforge" ]; then
 				printf -- "|==========================================================|\n"
 				printf "| %-12s | %-23s | %-15s |\n" "VERSION" "MODLOADER VERSION" "TYPE"
 				printf -- "|----------------------------------------------------------|\n"
-				mapfile -t content < <(jq -r '.[] | select(. | contains("-beta") | not)' "./SHlauncher/neoforge_version_manifest.json")
+				mapfile -t content < <(jq -r '.[] | select(. | contains("-beta") | not)' "$SHdir/manifests/neoforge_version_manifest.json")
 
 				for (( i=0; i<${#content[@]}; i++ )); do
 					content[i]=$(trimCr "${content[$i]}")
