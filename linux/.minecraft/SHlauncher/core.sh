@@ -106,6 +106,13 @@ while true; do
 			set +x
 			exec ./init.sh --debug
 		;;
+		"trace")
+			# shellcheck disable=SC2164
+			cd "$dir/"
+			history -w
+			set +x
+			exec ./init.sh --trace
+		;;
 		"clear")
 			clear
 		;;

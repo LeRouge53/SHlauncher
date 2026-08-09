@@ -13,7 +13,7 @@ function trimmedUUIDcalc() {
 function SetColor() {
 	if [ "${Sett[SelectedProfile]}" == "None" ]; then \
 		DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
-		return 0
+		return
 	fi
 	profile=$(jq -r '.name' "${Sett[SelectedProfile]}.json")
 	if jq -e '.isOnline' "${Sett[SelectedProfile]}.json" &>/dev/null; then \

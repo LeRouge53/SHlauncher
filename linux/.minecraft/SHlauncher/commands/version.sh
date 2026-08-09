@@ -9,19 +9,22 @@ function install() {
 		local inputFile=$1
 		local outputDir=$2
 
+		log "INFO" "version.sh:install:installLib" "Started library install job with input file \"$inputFile\" and output directory \"$outputDir\""
+
 		if [[ -z $inputFile ]] || [[ -z $outputDir ]]; then
-			printf "${YELLOW_BOLD}[BUG] function installLib require 2 argument, but some are missing:\n"
-			printf "inputFile: %s\n" "$inputFile"
-			printf "outputDir: %s${RESET}\n" "$outputDir"
+			printf "${YELLOW_BOLD}[BUG] function installLib require 2 argument, but some are missing! Check the log file for more info\n"
+			log "ERROR" "version.sh:install:installLib" "BUG : Some argument are missing. Expected argument: inputFile \"$inputFile\", outputDir \"$outputDir\""
 			return 1
 		fi
 
 		outputCp=""
 		goal=$(jq -r '.libraries | length' "$inputFile")
+		log "INFO" "version.sh:install:installLib" "Downloading $goal libraries"
 		actual=0
 		while IFS='|' read -r type url path sha1 extract; do
 
 			printf "${BLUE_BOLD}Downloading $path...${RESET}\n"
+			log "DEBUG" "version.sh:install:installLib" "Started downloading $path"
 			sha1="$(trimCr "$sha1")"
 			dest="$outputDir/$path"
 			mkdir -p "$(dirname "$dest")"
@@ -34,16 +37,19 @@ function install() {
 					elif [[ "$type" == "native" ]]; then
 						if ! unzip -od natives/ "$dest" &>/dev/null; then
 							printf "${YELLOW}Unzip of native library $path failed!\n"
+							log "ERROR" "version.sh:install:installLib" "Failed to install $path, Unzip failed. Exiting"
 							printf "${RED}Error is non-recoverable, exiting${RESET}\n"
 							return 1
 						fi
 					fi
 					printf "${GREEN}Skipping $path, already downloaded${RESET}\n"
+					log "DEBUG" "version.sh:install:installLib" "$path was already installed and has been skipped"
 					actual=$((actual+1))
 					printf "${GREEN}Downloaded $actual libraries out of $goal${RESET}\n"
 					continue
 				else
 					printf "${YELLOW}Invalid hash of \"${path}\", redownload required${RESET}\n"
+					log "DEBUG" "version.sh:install:installLib" "$path was already installed and has been skipped"
 				fi
 			fi
 
@@ -52,6 +58,7 @@ function install() {
 
 			if [ "$local_sha1" != "$sha1" ]; then
 				printf "${YELLOW}Failed to download $path : mismatched hash\n"
+				log "ERROR" "version.sh:install:installLib" "Failed to install $path, download failed. Exiting"
 				printf "${RED}Error is non recoverable : please retry${RESET}\n"
 				return 1
 			fi
@@ -61,6 +68,7 @@ function install() {
 				printf "${BLUE_BOLD}Unzipping natives : $path...${RESET}\n"
 				if ! unzip -od natives/ "$dest" &>/dev/null; then
 					printf "${YELLOW}Unzip of native library $path failed!\n"
+					log "ERROR" "version.sh:install:installLib" "Failed to install $path, Unzip failed. Exiting"
 					printf "${RED}Error is non-recoverable, exiting${RESET}\n"
 					return 1
 				fi
@@ -74,6 +82,7 @@ function install() {
 
 			actual=$((actual+1))
 			printf "${GREEN}Finished downloading \"$path\"\n"
+			log "DEBUG" "version.sh:install:installLib" "Finished downloading $path"
 			printf "Downloaded $actual libraries out of $goal${RESET}\n"
 
 		done < <(jq -r --arg os "$osname" --arg libRoot "$libRoot" ' 
@@ -144,10 +153,12 @@ function install() {
 	case $modloader in
 		"vanilla")
 			echo "Starting download..."
+			log "INFO" "version.sh:install" "Requested download of version $targetVers"
 			url="$(jq -r '.versions[] | select(.id == "'"$targetVers"'") | .url' ./SHlauncher/vanilla_version_manifest.json)"
 			mkdir -p "$versDir/$targetVers"
 			if [ "$url" == "" ]; then
 				printf "${RED}Invalid version, type \"version list\" to list all version available${RESET}\n"
+				log "ERROR" "version.sh:install" "Download aborted, invalid version"
 				return 1
 			fi
 
@@ -170,20 +181,25 @@ function install() {
 				local fullString
 				fullString=$(trimCr "$1")
 				if [[ -z $fullString ]]; then
-					printf "${YELLOW_BOLD}[BUG]${YELLOW} function NeoArgSubstitute require 1 entry argument, but none were ever passed${RESET}\n" >&2
+					printf "${YELLOW_BOLD}[BUG]${YELLOW} function NeoArgSubstitute require 1 entry argument, but none were ever passed! Check the log file for more info${RESET}\n" >&2
+					log "ERROR" "version.sh:install:NeoArgSubstitute" "BUG : Some argument are missing. Expected argument: fullString \"$fullString\""
 					return 1
 				fi
-
+				log "INFO" "version.sh:install:NeoArgSubstitute" "Treating fullString \"$fullString\""
 				while [[ $fullString =~ \{([^}]*)\} ]]; do
 					arg="${BASH_REMATCH[1]}"
 					if ! [[ -v installVars[$arg] ]]; then
 						printf "${YELLOW_BOLD}[BUG]${YELLOW} Function NeoArgSubstitute encountered an undefined argument when handling %s and cannot continue${RESET}\n" "$arg" >&2
+						log "ERROR" "version.sh:install:NeoArgSubstitute" "Encountered an undefined argument when treating $fullString. Cannot continue"
+						log "ERROR" "version.sh:install:NeoArgSubstitute" "This usually means the Neoforge version you are trying to download is not compatible with SHlauncher"
 						return 1
 					fi
 					fullString="${fullString//"{$arg}"/${installVars[$arg]}}"
 				done
+				log "DEBUG" "version.sh:install:NeoArgSubstitute" "Resolved to $fullString"
 				if [[ "$fullString" =~ \[ ]] && [[ "$fullString" =~ \] ]]; then
 					fullString=$(mavenParser "$fullString")
+					log "DEBUG" "version.sh:install:NeoArgSubstitute" "Detected maven coordinates. Downloading \"https://maven.neoforged.net/releases/$fullString\"..."
 					curl -sfLo "$MCdir/libraries/$fullString" "https://maven.neoforged.net/releases/$fullString"
 				fi
 
@@ -197,7 +213,8 @@ function install() {
 
 			versionJson="$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}.json"
 			installDir="$versDir/neoforge-$fullModLoaderVers/install"
-
+			
+			log "INFO" "version.sh:install" "Requested download of version $fullModLoaderVers"
 			mkdir -p "$versDir/neoforge-$fullModLoaderVers"
 			mkdir -p "$versDir/neoforge-$fullModLoaderVers/install"
 			if ! [[ -f "$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar" ]]; then
@@ -205,6 +222,7 @@ function install() {
 					"https://maven.neoforged.net/releases/net/neoforged/neoforge/$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar"
 				then
 					printf "${RED}Invalid version, type \"version list -m neoforge\" to list all version available${RESET}\n"
+					log "ERROR" "version.sh:install" "Download aborted, invalid version"
 					return 1
 				fi
 			else
@@ -214,17 +232,20 @@ function install() {
 			if ! unzip -p "$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar" version.json > "$versionJson"; then
 				printf "${RED_BOLD}Unzip of the version.json from the installer failed\n"
 				printf "Error is non recoverable. Please retry${RESET}\n"
+				log "ERROR" "version.sh:install" "Install aborted, unzip of version.json failed"
 				return 1
 			fi
 			if ! unzip -p "$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar" install_profile.json > "$installDir/install_profile.json"; then
 				printf "${RED_BOLD}Unzip of the install_profile.json from the installer failed\n"
 				printf "Error is non recoverable. Please retry${RESET}\n"
+				log "ERROR" "version.sh:install" "Install aborted, unzip of install_profile.json failed"
 				return 1
 			fi
 
 			inheritedVers=$(jq -r '.inheritsFrom' "$versionJson")
 			if ! [[ -f "$versDir/$inheritedVers/$inheritedVers.jar" ]]; then
 				printf "${RED_BOLD}The requested version inherits part of his content from the vanilla $inheritedVers version, please install it first${RESET}\n"
+				log "ERROR" "version.sh:install" "Install aborted, Missing dependency vanilla $inheritedVers"
 				return 1
 			fi
 
@@ -233,6 +254,7 @@ function install() {
 			for version in "${allJavaVers[@]}"; do
 				if "$SHdir/java/${version}/bin/java" -version &>/dev/null; then
 					localJava="$SHdir/java/$version/bin/java"
+					log "INFO" "version.sh:install" "Picked java $version to run the neoforge processors"
 					printf "${BLUE}Picking java %s to run the processors${RESET}\n" "${version}"
 					isDone=true
 					break
@@ -240,11 +262,13 @@ function install() {
 			done
 			if ! $isDone; then
 				printf "${RED_BOLD}At least one java version is required to run the processors install any and retry${RESET}\n"
+				log "ERROR" "version.sh:install" "Install aborted, no java version are installed to run the processors"
 				return 1
 			fi
 			unset -v isDone
 
-			echo "Downloading installation libraries (they will be deleted afterwards)"
+			echo "Downloading installation libraries"
+			log "INFO" "version.sh:install" "Downloading installation libraries..."
 			installLib "$installDir/install_profile.json" "$MCdir/libraries"
 			unset -v outputCp
 
@@ -302,8 +326,10 @@ function install() {
 				printf "${BLUE_BOLD}executing processor %s...${RESET}\n" "$jar"
 
 				cd "./libraries" || cdfail
+				log "INFO" "version.sh:install" "Starting processor \"$jar\""
 				if ! "${localJava}" "-Xms64M" "-Xmx2G" "-cp" "${finalInstallCp}" "${installMainClass}" "${procArgs[@]}"; then
 					printf "${RED_BOLD}Processor %s failed to execute\n" "$jar"
+					log "ERROR" "version.sh:install" "Install aborted, Processor $jar failed to execute"
 					printf "Error is non recoverable. please retry${RESET}\n"
 					return 1
 				fi
@@ -311,6 +337,7 @@ function install() {
 			done < <(jq -c --arg side "$side" '.processors[] | . as $proc | ( if $proc.sides == null or ($side | IN($proc.sides[])) then $proc else empty end )' "$installDir/install_profile.json")
 			rm "$versDir/neoforge-$fullModLoaderVers/"*-installer.jar*
 			rm -r -- "$installDir"
+			log "INFO" "version.sh:install" "Processor execution complete"
 			for (( i=0; i<${#procArgs[@]}; i++ )); do
 				if [ "${procArgs[i]}" == "--output" ]; then
 					newIndex=$((i+1))
@@ -327,15 +354,17 @@ function install() {
 
 	case $modloader in
 		"vanilla")
+			log "INFO" "version.sh:install" "Installing game libraries..."
 			installLib "$versionJson" "libraries"
 			classpath=$outputCp
 			client="versions/${targetVers}/${targetVers}.jar"
 			classpath="${classpath}${sep}${client}"
+			log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
 			unset -v outputCp
 		;;
 		"neoforge")
 			printf "${BLUE_BOLD}Merging vanilla and modded library list${RESET}\n"
-
+			log "INFO" "version.sh:install" "Merging vanilla (\"$versDir/$inheritedVers/$inheritedVers.json\") and modded (\"$versionJson\") library list..."
 			local vanillaLib
 			vanillaLib="$versDir/$inheritedVers/$inheritedVers.json"
 			local newLib
@@ -354,6 +383,7 @@ function install() {
 				| {libraries: [.[]]}' \
 				"$versionJson" "$vanillaLib" > "$newLib"
 
+			log "INFO" "version.sh:install" "Installing game libraries..."
 			installLib "$newLib" "libraries"
 			classpath=$outputCp
 			command -p rm "$newLib"
@@ -404,10 +434,12 @@ function install() {
 		if [ "$name" != "null" ] && [ "$name" != "" ]; then 
 			if ! [[ -f "SHlauncher/log4jconf/$name" ]]; then
 				echo "Downloading log4j config file..."
+				log "INFO" "version.sh:install" "Downloading log4j configuration file at \"$url\""
 				curl -so "SHlauncher/log4jconf/$name" "$url" &>/dev/null
 				local_sha1=$(sha1sum "SHlauncher/log4jconf/$name" | cut -d' ' -f1)
 				if [ "$local_sha1" != "$sha1" ]; then
 					printf "${YELLOW}Error: The newly downloaded log4j config file is corrupted\n"
+					log "ERROR" "version.sh:install" "Install aborted. The configuration file is invalid (hash check failed)"
 					printf "${RED}Error is non recoverable : please retry${RESET}\n"
 					return 1
 				fi
@@ -451,17 +483,16 @@ function install() {
 				touch "$standardErr"
 				touch "$standardCrash"
 
+				log "INFO" "version.sh:install:parallelDownload" "Starting job with $threadNumber threads"
 				printf "${BLUE_BOLD}Starting job with %s threads${RESET}\n" "$threadNumber"
 
 				# shellcheck disable=SC2194
 				case "" in
 					"$threadNumber" | "$targetFunc" | "$file")
-						printf "${YELLOW_BOLD}[BUG] function parallelDownload require 3 entry argument, but some are missing ; entered arguments are:\n" >&2
-						printf " - threadNumber: %s\n" "$threadNumber" >&2
-						printf " - targetFunc: %s\n" "$targetFunc" >&2
-						printf " - file:%s\n" "$file" >&2
+						printf "${YELLOW_BOLD}[BUG] function parallelDownload require 3 entry argument but some are missing! Check the log file for more info\n" >&2
+						log "ERROR" "version.sh:install:parallelDownload" "BUG : Some argument are missing. Expected argument: threadNumber \"$threadNumber\", targetFunc \"$targetFunc\", file \"$file\""
 						shopt -u nullglob
-						return 1
+						return 2
 					;;
 					*)
 						true
@@ -469,13 +500,15 @@ function install() {
 
 				local goal
 				goal=$(wc -l < "$file")
+				log "INFO" "version.sh:install:parallelDownload" "goal is $goal"
 				split --numeric-suffixes=1 --suffix-length=1 -n l/"$threadNumber" "$file" "$tmpdir/worker_"
 				pids=()
 				for i in $(seq 1 "$threadNumber"); do
 					"${targetFunc}" "$i" "$tmpdir/worker_$i" "$standardErr" "$standardCrash" &
 					pids+=($!)
+					log "DEBUG" "version.sh:install:parallelDownload" "launched ${targetFunc} successfully"
 				done
-
+				log "DEBUG" "version.sh:install:parallelDownload" "list of PIDs : ${pids[*]}"
 				local finished=0
 				local total=0
 
@@ -490,11 +523,13 @@ function install() {
 						total=$(( total+"$(wc -l < "$f")" ))
 						if [ -s "$standardErr" ]; then
 							printf "${YELLOW}%s${RESET}\n" "$( <"$standardErr" )"
+							log "WARN" "version.sh:install:parallelDownload" "Error caught from worker (non-fatal): $( <"$standardErr" )"
 							echo "" > "$standardErr"
 						fi
 
 						if [ -s "$standardCrash" ]; then
 							printf "${YELLOW}%s${RESET}\n" "$( <"$standardCrash" )"
+							log "ERROR" "version.sh:install:parallelDownload" "Installation aborted, crash caught from worker : $( <"$standardCrash" )"
 							printf "${RED}Error is non-recoverable. Please retry${RESET}\n"
 							kill "${pids[@]}"
 							wait "${pids[@]}" 2>/dev/null
@@ -510,6 +545,7 @@ function install() {
 					sleep 0.2
 				done
 				printf "${GREEN}Job completed successfully${RESET}\n"
+				log "INFO" "version.sh:install:parallelDownload" "Finished job"
 				wait "${pids[@]}" 2>/dev/null
 				rm -r "${tmpdir}"
 				# shellcheck disable=SC1091
@@ -550,16 +586,19 @@ function install() {
 			
 			jq -r '.objects[].hash' \
 				"$assetDir/indexes/$id.json" > assets.todo
-
+			
+			log "INFO" "version.sh:install" "Launching asset parallel download"
 			if ! parallelDownload "${Sett[ThreadUsedOnAssetDownload]}" downloadWorker ./assets.todo; then
 				return "$?"
 			fi
 			rm ./assets.todo
 		else # fin dsa
-			printf "${YELLOW}DSA on, asset download skipped${RESET}\n"
+			printf "${YELLOW}DebugSkipAssets on, asset download skipped${RESET}\n"
+			log "WARN" "version.sh:install" "Asset download was skipped due to a debug action, final JSON may be broken"
 		fi
 	else # c'est la fin du vanilla only
 		printf "${GREEN_BOLD}Skipping asset download as it is unrequired for this version${RESET}\n"
+		log "INFO" "version.sh:install" "Assets download is unrequired when downloading a modloader"
 	fi
 
 	echo "Saving progress"
@@ -575,6 +614,8 @@ function install() {
 		local arch="$4"
 
 		local type; type=$(echo "$entry" | jq -r 'type')
+
+		log "DEBUG" "version.sh:install:evaluateArgEntry" "Evaluating $entry"
 
 		if [[ "$type" == "string" ]]; then
 			# String simple = toujours incluse
@@ -641,6 +682,8 @@ function install() {
 		jsonFormatIsModern=false # avant 1.13 : (minecraftArguments)
 	fi
 
+	log "INFO" "version.sh:install" "Saving version..."
+
 	jvmArgs=()
 	case $modloader in 
 		"vanilla")
@@ -676,6 +719,7 @@ function install() {
 				read -ra jvmArgs <<< '-Djava.library.path=${natives_directory} -Dminecraft.launcher.brand=${launcher_name} -Dminecraft.launcher.version=${launcher_version} -Dlog4j.configurationFile=${path} -cp ${classpath} ${mainClass}'
 				jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -R . | jq -s .)
 			fi
+			log "INFO" "version.sh:install" "Ready to save $targetVers.json"
 		;;
 		"neoforge")
 			while IFS= read -r entry; do
@@ -685,6 +729,7 @@ function install() {
 			done < <(jq -c '.arguments.jvm[]' "$versionJson")
 
 			gameArgsJson=$(jq '.arguments.game' "$versionJson")
+			log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers.json"
 	esac
 
 	jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -Rs 'split("\n")[:-1]') # jvmArgs pose des \r partout, pas un problème pour le moment
@@ -692,6 +737,7 @@ function install() {
 	mainClass="$(jq -r '.mainClass // empty' "$versionJson")"
 	versionType=$(jq -r '.type' "$versionJson")
 
+	
 	# aled
 	case $modloader in
 		"vanilla")

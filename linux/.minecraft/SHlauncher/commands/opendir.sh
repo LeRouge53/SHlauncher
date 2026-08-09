@@ -15,7 +15,7 @@ if [ "$targetInst" = "" ]; then
 	targetInst=$instance
 elif [ "$targetInst" = "help" ]; then
 	helpPage
-	return 0
+	return
 elif [ "$targetInst" = "\help" ]; then
 	targetInst="help"
 fi

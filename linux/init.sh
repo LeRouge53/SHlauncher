@@ -20,39 +20,61 @@ function log() {
 	local msg="$*"
 	case "" in
 		"$level" | "$source")
-			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function log require 2 a \"level\" and a \"source\" argument, but some are missing : \n"
-			printf "level : %s" "$level"
-			printf "source : %s" "$source"
-			return 1
+			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function log require 2 arguments but some are missing! Check the log file for more info \n"
+			log "ERROR" "init.sh:log" "BUG : Some argument are missing. Expected argument: level \"$level\", source \"$source\""
+			return 2
 		;;
 		*)
 			true
 	esac
 
 	touch "$SHlogFile"
-	printf '[%(%F %T)T] [%s/%s] %s\n' -1 "$level" "$source" "$msg" >> "$SHlogFile"
+	if [ "$level" != "DEBUG" ]; then
+		printf '[%(%F %T)T] [%s/%s] %s\n' -1 "$level" "$source" "$msg" >> "$SHlogFile"
+	elif $debug; then
+		printf '[%(%F %T)T] [%s/%s] %s\n' -1 "$level" "$source" "$msg" >> "$SHlogFile"
+	fi
 
-	if $verbose || $debug; then
+	if $verbose || $trace; then
 		case $level in
 		"INFO")
-			printf "${GREEN_BOLD}[%s/%s]"$'\033[0m'"${GREEN} %s\n${RESET}" "$level" "$source" "$msg"
+			printf "${GREEN_BOLD}[%s/%s]"$'\033[0m'"${GREEN} %s\n${RESET}" "$level" "$source" "$msg" >&2
 		;;
 		"WARN")
-			printf "${YELLOW_BOLD}[%s/%s]${RESET}${YELLOW} %s\n${RESET}" "$level" "$source" "$msg"
+			printf "${YELLOW_BOLD}[%s/%s]${RESET}${YELLOW} %s\n${RESET}" "$level" "$source" "$msg" >&2
 		;;
 		"ERROR")
-			printf "${RED_BOLD}[%s/%s]${RESET}${RED} %s\n${RESET}" "$level" "$source" "$msg"
+			printf "${RED_BOLD}[%s/%s]${RESET}${RED} %s\n${RESET}" "$level" "$source" "$msg" >&2
 		;;
 		"FATAL")
-			printf "${RED_BOLD}[%s/%s]${RESET}${RED_BOLD} %s\n${RESET}" "$level" "$source" "$msg"
+			printf "${RED_BOLD}[%s/%s]${RESET}${RED_BOLD} %s\n${RESET}" "$level" "$source" "$msg" >&2
 		;;
 		"DEBUG")
-			printf "${CYAN_BOLD}[%s/%s]${RESET}${CYAN} %s\n${RESET}" "$level" "$source" "$msg"
+			printf "${CYAN_BOLD}[%s/%s]${RESET}${CYAN} %s\n${RESET}" "$level" "$source" "$msg" >&2
 		;;
 		*)
-			printf "${WHITE_BOLD}[%s/%s]${RESET}${WHITE} %s\n${RESET}" "$level" "$source" "$msg"
+			printf "${WHITE_BOLD}[%s/%s]${RESET}${WHITE} %s\n${RESET}" "$level" "$source" "$msg" >&2
 		esac
 	fi
+}
+exec 3>&1
+function exceptionCatch(){
+	local source=$1
+	shift
+	if [[ -z $source || $# -eq 0 ]]; then
+		printf '%b\n' "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function exceptionCatch requires 2 arguments, but some are missing! Check the log file for more info\n" >&2
+		log "ERROR" "init.sh:exceptionCatch" "BUG : Some argument are missing. Expected argument: source \"$source\", "'$*'" \"$*\""
+		return 2
+	fi
+	local output
+	output=$("$@" 2>&1 >&3 3>&-)
+	local exitCode=$?
+	if (( exitCode != 0 )); then
+		log "ERROR" "init.sh:exceptionCatch" \
+			"Command \"$*\" requested by $source failed to execute!"
+		[[ -n $output ]] && log "ERROR" "init.sh:exceptionCatch" "$output"
+	fi
+	return "$exitCode"
 }
 
 source="${BASH_SOURCE[0]}" # le "mieux" en question
@@ -71,11 +93,12 @@ trap 'echo ""; source "$SHdir/crashHandler.sh" SIGINT' INT
 
 debug=false
 verbose=false
+trace=false
 portable=false
 IFSBak=$' \t\n'
+cip=true
 export SHlname="SHlauncherBE"
 export SHlvers="0.2.0"
-cip=true
 # shellcheck disable=SC2329
 function trimCr() { 
 	printf '%s' "${1%$'\r'}"
@@ -109,6 +132,11 @@ function argHandler() {
 			shift
 			argHandler "$@"
 		;;
+		"--trace")
+			trace=true
+			shift
+			argHandler "$@"
+		;;
 		"--nocip")
 			# shellcheck disable=SC2034
 			cip=false
@@ -139,7 +167,7 @@ command -p rm "$SHlogFile"
 log "DEBUG" "init.sh" "Core directory resolved to $dir"
 log "INFO" "init.sh" "Starting $SHlname, version $SHlvers, debug mode: $debug, verbose mode: $verbose, cip: $cip, portable mode: $portable"
 
-if $debug; then
+if $trace; then
 	printf "As you wish...\n"
 	set -x
 fi
@@ -168,11 +196,9 @@ function declareArgs() {
 	local type="$3"
 	case "" in
 		"$long" | "$short" | "$type")
-			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function declareArgs requires 3 arguments but some are missing\n" >&2
-			printf "long: %s\n" "$long" >&2
-			printf "short: %s\n" "$short" >&2
-			printf "type: %s\n" "$type" >&2
-			return 1
+			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function declareArgs requires 3 arguments but some are missing! Check the log file for more info\n" >&2
+			log "ERROR" "init.sh:declareArgs" "BUG : Some argument are missing. Expected argument: long \"$long\", short \"$short\", type \"$type\""
+			return 2
 		;;
 		*)
 			true
@@ -200,7 +226,7 @@ function globalArgHandler() {
 				if [ "${declaredLongParam["$argName"]}" = "value" ]; then
 					if (( i + 1 >= ${#args[@]} )); then
 						printf "${RED_BOLD}%s require a value${RESET}\n" "$argName"
-						return 1
+						return 2
 					fi
 					parameter["$argName"]=${args[(( i + 1 ))]}
 					((i++))
@@ -216,14 +242,14 @@ function globalArgHandler() {
 				if [ "${declaredLongParam["$translatedParam"]}" = "value" ]; then
 					if (( i + 1 >= ${#args[@]} )); then
 						printf "${RED_BOLD}%s require a value${RESET}\n" "$translatedParam"
-						return 1
+						return 2
 					fi
 					parameter["$translatedParam"]=${args[(( i + 1 ))]}
 					((i++))
 				else
 					parameter["$translatedParam"]=true
 				fi
-				log "DEBUG" "init.sh:globalArgHandler" "resolved $translatedParam to ${parameter["$argName"]}"
+				log "DEBUG" "init.sh:globalArgHandler" "resolved $translatedParam to ${parameter["$translatedParam"]}"
 			;;
 			*)
 				instructions+=("${args[$i]}")
@@ -238,7 +264,7 @@ function writeSettingsValue() {
 	tmp=$(mktemp)
 	Sett["$settingId"]=$value
 	jq ".settings.$settingId = \"$value\"" "$SHdir/settings/data/user.json" > "$tmp" && mv "$tmp" "$SHdir/settings/data/user.json"
-	log "DEBUG" "init.sh:writeSettingsValue" "wrote setting value $settingId with $value"
+	log "DEBUG" "init.sh:writeSettingsValue" "wrote setting value \"$settingId\" with \"$value\""
 }
 
 source "$SHdir/commands/settings.sh" init
@@ -294,10 +320,11 @@ echo "Finished resolving dependencies"
 # shellcheck disable=SC2329
 function mavenParser() {
 	local is=$1 # is pour "input string"
-	log "DEBUG" "mavenParser" "mavenParser called with $is"
+	log "DEBUG" "init.sh:mavenParser" "mavenParser called with $is"
 	if [ "$is" == "" ]; then
-		printf "${YELLOW_BOLD}[BUG] function mavenParser require 1 entry argument, but none were ever passed${RESET}\n"
-		return 1
+		printf "${YELLOW_BOLD}[BUG] function mavenParser require 1 entry argument but none were ever passed! Check the log file for more info${RESET}\n"
+		log "ERROR" "init.sh:mavenParser" "BUG : Some argument are missing. Expected argument: is \"$is\""
+		return 2
 	fi
 	is=$(trimCr "$is")
 	is="${is//'['/}"
@@ -329,9 +356,8 @@ function mavenParser() {
 	filename+=".$ext"
 
 	local path="$groupPath/$artifact/$version/$filename"
-	log "INFO" "mavenParser" "resolved $is to $path"
+	log "DEBUG" "init.sh:mavenParser" "resolved $is to $path"
 	printf '%s' "${path%$'\r'}"
-	return
 }
 
 echo "Starting manifest check"

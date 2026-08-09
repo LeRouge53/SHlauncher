@@ -47,7 +47,7 @@ function create() {
 	case "" in
 		"$name" | "$modloader" | "$version")
 		printf "${RED_BOLD}One or more argument were forgotten, this command require at least a name, a modloader (can be vanilla), and a minecraft version${RESET}\n"
-		return 1
+		return 2
 	esac
 
 	if [[ -f "./$name.json" ]]; then
@@ -57,7 +57,7 @@ function create() {
 
 	if [ "$name" == "None" ]; then
 		printf "${RED_BOLD}The name of this instance can't be \"None\", please use another name${RESET}\n"
-		return 1
+		return 2
 	fi
 
 	case $modloader in
@@ -97,7 +97,7 @@ function create() {
 		;;
 		*)
 			printf "${RED_BOLD}Unknown modloader \"%s\", supported modloaders are Vanilla, Forge, NeoForge, Fabric and Quilt${RESET}\n" "$modloader"
-			return 1
+			return 2
 	esac
 
 	log "INFO" "instance.sh:create" "Requested creation of instance \"$name\" with modloader \"$modloader\" and version $version $modloaderVersion"
@@ -150,7 +150,7 @@ function create() {
 
 function sel() {
 	name=$1
-	if ! [[ -f "$name.json" ]]; then echo "The selected Instance \"$name\" does not exist"; return 1; fi
+	if ! [[ -f "$name.json" ]]; then echo "The selected Instance \"$name\" does not exist"; return 2; fi
 	log "INFO" "instance.sh:sel" "New instance is \"$name\""
 	writeSettingsValue SelectedInstance "$name"
 	SetColor
@@ -158,7 +158,7 @@ function sel() {
 
 function delete() {
 	name=$1
-	if ! [[ -f "$name".json ]]; then echo "The selected Instance \"$name\" does not exist"; return 1; fi
+	if ! [[ -f "$name".json ]]; then echo "The selected Instance \"$name\" does not exist"; return 2; fi
 	log "WARN" "instance.sh:delete" "Deleting instance $name"
 	command -p rm -- "$name.json"
 	if [ "${Sett[SelectedInstance]}" == "$name" ]; then
@@ -221,7 +221,7 @@ function Main() {
 
 mkdir -p "$SHdir/instances"
 mkdir -p "$MCdir/instances"
-cd "$SHdir/instances" || return 1
+cd "$SHdir/instances" || return 255
 
 parameter[customGameDir]=""
 parameter[anotherGameDir]=false
@@ -230,7 +230,7 @@ declareArgs customGameDir c value
 declareArgs anotherGameDir a flag
 
 if ! globalArgHandler "$@"; then
-	return 1
+	return $?
 fi
 
 if [[ -n ${parameter[customGameDir]} ]]; then

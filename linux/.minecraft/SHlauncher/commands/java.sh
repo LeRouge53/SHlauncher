@@ -4,7 +4,7 @@ function list() {
 		# shellcheck disable=SC2154
 		if ! "$SHdir/java/$1/bin/java" -version 2>/dev/null; then
 			printf "${YELLOW}Java $1 is not installed${RESET}\n"
-			return 1
+			return
 		fi
 		"$SHdir/java/$1/bin/java" -version
 	}
@@ -21,6 +21,7 @@ function install() {
 	local versionDir="$SHdir/java/$version"
 	if ! $ONLINE_MODE; then
 		printf "${RED}Can't download, you are in offline mode${RESET}\n"
+		return 1
 	fi
 	case $version in
 		"8" | "16" | "17" | "21" | "25")
@@ -39,20 +40,23 @@ function install() {
 			fi
 			printf "${BLUE_BOLD}Downloading target java...${RESET}\n"
 			url=https://api.adoptium.net/v3/binary/latest/"${version}"/ga/"$(detect_os)"/"$(detect_arch)"/"${imageType}"/hotspot/normal/eclipse
-			if ! curl -L --retry 5 --retry-delay 2 -s "$url" -o ./temp_archive.tar.gz; then
-				printf "${RED}Failed to download Java, please try to download manually \"$url\" to get a more precise error${RESET}\n"
-				log "ERROR" "Failed to download Java, download failed. URL is \"$url\""
+			if ! exceptionCatch "java.sh:install" curl -LsS --retry 5 --retry-delay 2 "$url" -o ./temp_archive.tar.gz; then
+				printf "${RED}Failed to download Java, an issue occurred when attempting to download. Check the log file for more info${RESET}\n"
+				return 1
 			fi
 
 			printf "${BLUE_BOLD}Unpacking archive...${RESET}\n"
 			mkdir -p "$versionDir"
-			tar xzf ./temp_archive.tar.gz -C "$version" --strip-components=1
-			if "$versionDir/bin/java" -version; then
+			if ! exceptionCatch "java.sh:install" tar xzf ./temp_archive.tar.gz -C "$version" --strip-components=1; then
+				printf "An error occurred when attempting to unzip the java archive"
+				return 1
+			fi
+			if exceptionCatch "java.sh:install" "$versionDir"/bin/java -version; then
 				printf "${GREEN_BOLD}Installation successful${RESET}\n"
-				log "INFO" "java.sh:install" "Install was successful"
+				log "INFO" "java.sh:install" "Installation was successful"
 				command -p rm ./temp_archive.tar.gz
 			else
-				printf "${RED_BOLD}Installation seemed to have failed,${RESET} if you have any issues, retry with \"-r\"\n"
+				printf "${RED_BOLD}Installation seemed to have failed,${RESET}${RED} if you have any issues, retry with \"-r\"${RESET}\n"
 				log "INFO" "java.sh:install" "Install seem to have failed, \"$versionDir/bin/java\" seems not to exist"
 				command -p rm ./temp_archive.tar.gz
 				return 1

@@ -1,17 +1,18 @@
 # shellcheck disable=SC2154
 # shellcheck disable=SC2016 # non bro, c'est prévu
-cd "$MCdir" || return
+cd "$MCdir" || return 1
 touch .lastLaunchedGame
 
-substitute_arg() {
+substituteArg() {
 	local arg="$1"
 	local oldArg=$arg
 	if [ "$arg" == "" ]; then
 		printf "${YELLOW_BOLD}[BUG] function substituteArg require 1 entry argument, but none were ever passed${RESET}\n" >&2
+		log "ERROR" "launch.sh:substituteArg" "BUG : Some argument are missing. Expected argument: arg \"$arg\""
 		return 1
 	fi
 
-	log "DEBUG" "launch.sh:substitute_arg" "Resolving \"$oldArg\""
+	log "DEBUG" "launch.sh:substituteArg" "Resolving \"$oldArg\""
 	arg=$(trimCr "$arg")
 
 	arg="${arg//'${natives_directory}'/$nativesDir}"
@@ -38,7 +39,7 @@ substitute_arg() {
 	arg="${arg//'${user_type}'/msa}"
 	arg="${arg//'${version_type}'/$versionType}"
 
-	log "DEBUG" "launch.sh:substitute_arg" "Resolved \"$oldArg\" into \"$arg\""
+	log "DEBUG" "launch.sh:substituteArg" "Resolved \"$oldArg\" into \"$arg\""
 	printf '%s\n' "$arg"
 }
 
@@ -48,9 +49,12 @@ function launch() {
 	# shellcheck disable=SC2194 # comparaison inversé 
 	case "" in
 		"$launchProf" | "$launchInst")
-			printf "${YELLOW_BOLD}[BUG] Function launch require 2 arguments but some are missing\n" >&2
-			printf "launchProf: %s\n" "$launchProf" >&2
-			printf "launchInst: %s${RESET}\n" "$launchInst" >&2
+			printf "${YELLOW_BOLD}[BUG] Function launch require 2 arguments but some are missing! Check the log file for more info\n" >&2
+			log "ERROR" "launch.sh:launch" "BUG : Some argument are missing. Expected argument: launchProf \"$launchProf\", launchInst \"$launchInst\""
+			return 1
+		;;
+		*)
+			true
 	esac
 	log "INFO" "launch.sh:launch" "Launching game with profile \"$launchProf\" and instance \"$launchInst\""
 	printf "${BLUE_BOLD}Building command...${RESET}\n"
@@ -103,20 +107,20 @@ function launch() {
 	if [ "$modloader" != "vanilla" ]; then jvmArgs+=("${moddedJvmArgs[@]}"); fi
 	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam" "-Xdiag")
 	for arg in "${jvmArgs[@]}"; do
-		finalJvmArgs+=("$(substitute_arg "$arg")")
+		finalJvmArgs+=("$(substituteArg "$arg")")
 	done
 	log "DEBUG" "launch.sh:launch" "finalJVMArgs : ${finalJvmArgs[*]}"
 
 	finalGameArgs=()
 	if [ "$modloader" != "vanilla" ]; then gameArgs+=("${moddedGameArgs[@]}"); fi
 	for arg in "${gameArgs[@]}"; do
-		finalGameArgs+=("$(substitute_arg "$arg")")
+		finalGameArgs+=("$(substituteArg "$arg")")
 	done
 	finalGameArgs+=("${customGameArgs[@]}")
 	log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
 	
 	printf "${BLUE_BOLD}Finished building command, launching game...${RESET}\n"
-	if ! "$java" -version &>/dev/null; then
+	if ! exceptionCatch "launch.sh:launch" "$java" -version &>/dev/null; then
 		printf "${YELLOW}The required java version is not installed, please install java $runtime using \"java install $runtime\"${RESET}\n"
 		log "ERROR" "launch.sh:launch" "Failed to launch the game, required java not installed"
 		return 1
