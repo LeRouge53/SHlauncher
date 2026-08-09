@@ -4,7 +4,7 @@ It has the goal of being as light as possible (unlike electron launchers)
 
 ## Dependencies
 
-The launcher uses as a main dependency ([jq](https://github.com/jqlang/jq)) which IS required for the launcher to function properly. But to keep the portability, a binary is provided and can be used when using the flag `--portable`
+The launcher uses as a main dependency ([jq](https://github.com/jqlang/jq)) which IS required for the launcher to function properly. But to keep the portability, a binary can provided (should be stored at ".minecraft/SHlauncher/jq/") and will be used when using the flag `--portable`
 
 Without counting jq, the launcher also relies on tools that are usually preinstalled, like `sha1sum` `curl` `unzip` `gz` `tar` `awk` etc...
 Please note that the launcher is not POSIX-compliant. It only support bash. This script wasn't tested with zsh and does not support sh, ash, dash and fish

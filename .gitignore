@@ -370,7 +370,6 @@ linux/.minecraft/*
 linux/.minecraft/SHlauncher/*
 !linux/.minecraft/SHlauncher/*.sh
 !linux/.minecraft/SHlauncher/commands/
-!linux/.minecraft/SHlauncher/jq/
 !linux/.minecraft/SHlauncher/help/
 !linux/.minecraft/SHlauncher/settings/
 
@@ -388,7 +387,6 @@ win/.minecraft/*
 win/.minecraft/SHlauncher/*
 !win/.minecraft/SHlauncher/*.sh
 !win/.minecraft/SHlauncher/commands/
-!win/.minecraft/SHlauncher/jq/
 !win/.minecraft/SHlauncher/help/
 !win/.minecraft/SHlauncher/settings/
 

@@ -175,10 +175,15 @@ fi
 export depFailed=false
 export jqNotInstalled=false
 
+mkdir -p "$SHdir/jq"
 if $portable; then
 	printf "${YELLOW_BOLD}[WARN]${YELLOW} You are using SHlauncher in portable mode, which uses a self-stored jq command. \n${YELLOW_BOLD}[WARN]${YELLOW} This is NOT ideal as this version cannot be updated\n"
 	printf "${YELLOW_BOLD}[WARN]${YELLOW} Please consider disabling portable mode${RESET}\n"
-	PATH="$PATH:$SHdir/jq"
+	if exceptionCatch "init.sh" "$SHdir/jq" --version; then
+		PATH="$PATH:$SHdir/jq"
+	else
+		printf "${RED_BOLD}No JQ binary detected at %s. Please download the portable version of JQ and put it there${RESET}\n" "$SHdir/jq/jq"
+	fi
 fi
 
 if ! jq --version &>/dev/null; then
