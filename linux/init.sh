@@ -321,7 +321,15 @@ mkdir -p ./commands
 mkdir -p ./instances
 mkdir -p ./manifests
 
-if ! ping -c 1 -W 3 google.com &>/dev/null; then
+if [ $osName = "windows" ]; then
+	/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null
+	pingExitCode=$?
+else
+	ping -c 1 -W 3 google.com &>/dev/null
+	pingExitCode=$?
+fi
+
+if [ "$pingExitCode" != 0 ]; then
 	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
 	printf "${RED_BOLD}[ERROR]${RED} This launcher requires an Internet connection for almost everything, an offline mode exist but is very limited.\n"
 	printf "${RED_BOLD}[ERROR]${RED} Restart or reset the launcher to switch back to Online mode${RESET}\n"
