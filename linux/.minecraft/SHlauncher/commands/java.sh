@@ -1,7 +1,7 @@
 # shellcheck disable=SC2059
+# shellcheck disable=SC2154
 function list() {
 	ping() {
-		# shellcheck disable=SC2154
 		if ! "$SHdir/java/$1/bin/java" -version 2>/dev/null; then
 			printf "${YELLOW}Java $1 is not installed${RESET}\n"
 			return
@@ -40,25 +40,38 @@ function install() {
 			fi
 			printf "${BLUE_BOLD}Downloading target java...${RESET}\n"
 			url=https://api.adoptium.net/v3/binary/latest/"${version}"/ga/"$(detect_os)"/"$(detect_arch)"/"${imageType}"/hotspot/normal/eclipse
-			if ! exceptionCatch "java.sh:install" curl -LsS --retry 5 --retry-delay 2 "$url" -o ./temp_archive.tar.gz; then
+			if ! exceptionCatch "java.sh:install" curl -LsS --retry 5 --retry-delay 2 "$url" -o ./temp_archive.compressed; then
 				printf "${RED}Failed to download Java, an issue occurred when attempting to download. Check the log file for more info${RESET}\n"
 				return 1
 			fi
 
 			printf "${BLUE_BOLD}Unpacking archive...${RESET}\n"
 			mkdir -p "$versionDir"
-			if ! exceptionCatch "java.sh:install" tar xzf ./temp_archive.tar.gz -C "$version" --strip-components=1; then
-				printf "An error occurred when attempting to unzip the java archive"
-				return 1
+			if [ "$osName" = "windows" ]; then
+				tmpfile=$(mktemp)
+            	unzip -Z1 ./temp_archive.zip > "$tmpfile"
+            	read -r DirToNuke<"$tmpfile"
+            	rm "$tmpfile"
+            	if ! exceptionCatch "java.sh:install" unzip -qod "$versionDir" ./temp_archive.compressed; then
+					printf "${RED_BOLD}An error occurred when attempting to unzip the java archive, check the log file for more info${RESET}\n"
+					return 1
+				fi
+            	mv "$versionDir/$DirToNuke"* "$version"
+            	command -p rm -rf "${versionDir:?}/$DirToNuke"
+			else
+				if ! exceptionCatch "java.sh:install" tar xzf ./temp_archive.tar.gz -C "$version" --strip-components=1; then
+					printf "${RED_BOLD}An error occurred when attempting to unzip the java archive, check the log file for more info${RESET}\n"
+					return 1
+				fi
 			fi
 			if exceptionCatch "java.sh:install" "$versionDir"/bin/java -version; then
 				printf "${GREEN_BOLD}Installation successful${RESET}\n"
 				log "INFO" "java.sh:install" "Installation was successful"
-				command -p rm ./temp_archive.tar.gz
+				command -p rm ./temp_archive.compressed
 			else
 				printf "${RED_BOLD}Installation seemed to have failed,${RESET}${RED} if you have any issues, retry with \"-r\"${RESET}\n"
 				log "INFO" "java.sh:install" "Install seem to have failed, \"$versionDir/bin/java\" seems not to exist"
-				command -p rm ./temp_archive.tar.gz
+				command -p rm ./temp_archive.compressed
 				return 1
 			fi
 		;;
