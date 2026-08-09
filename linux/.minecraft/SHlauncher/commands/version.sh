@@ -33,7 +33,7 @@ function install() {
 				local_sha1=$(sha1sum "$dest" | cut -d' ' -f1)
 				if [ "$local_sha1" = "$sha1" ]; then
 					if [[ "$type" == "artifact" ]]; then
-						outputCp="${outputCp}${sep}${dest}"
+						outputCp="${outputCp}${cmdSeparator}${dest}"
 					elif [[ "$type" == "native" ]]; then
 						if ! unzip -od natives/ "$dest" &>/dev/null; then
 							printf "${YELLOW}Unzip of native library $path failed!\n"
@@ -63,7 +63,7 @@ function install() {
 				return 1
 			fi
 			if [ "$type" == "artifact" ]; then
-				outputCp="${outputCp}${sep}${dest}"
+				outputCp="${outputCp}${cmdSeparator}${dest}"
 			elif [ "$type" == "native" ]; then
 				printf "${BLUE_BOLD}Unzipping natives : $path...${RESET}\n"
 				if ! unzip -od natives/ "$dest" &>/dev/null; then
@@ -85,7 +85,7 @@ function install() {
 			log "DEBUG" "version.sh:install:installLib" "Finished downloading $path"
 			printf "Downloaded $actual libraries out of $goal${RESET}\n"
 
-		done < <(jq -r --arg os "$osname" --arg libRoot "$libRoot" ' 
+		done < <(jq -r --arg os "$osName" --arg libRoot "$libRoot" ' 
 			.libraries[] | 
 			. as $lib | 
 			( if $lib.rules == null then 
@@ -313,7 +313,7 @@ function install() {
 				finalInstallCp=""
 				for (( i=0; i<${#installCp[@]}; i++ )); do
 					installCp[i]="$(mavenParser "${installCp[i]}")"
-					finalInstallCp=${finalInstallCp}${sep}${installCp[i]}
+					finalInstallCp=${finalInstallCp}${cmdSeparator}${installCp[i]}
 				done
 
 				for (( i=0; i<${#procArgs[@]}; i++ )); do
@@ -358,7 +358,7 @@ function install() {
 			installLib "$versionJson" "libraries"
 			classpath=$outputCp
 			client="versions/${targetVers}/${targetVers}.jar"
-			classpath="${classpath}${sep}${client}"
+			classpath="${classpath}${cmdSeparator}${client}"
 			log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
 			unset -v outputCp
 		;;
@@ -403,8 +403,8 @@ function install() {
 			done
 			tempArgs[newIndex]=${tempArgs[newIndex]//'${library_directory}'/"libraries"}
 			tempArgs[newIndex]=${tempArgs[newIndex]//'${classpath_separator}'/":"}
-			mapfile -td "${sep}" CPInAnArray <<< "$classpath"
-			mapfile -td "${sep}" delete <<< "${tempArgs[$newIndex]}"
+			mapfile -td "${cmdSeparator}" CPInAnArray <<< "$classpath"
+			mapfile -td "${cmdSeparator}" delete <<< "${tempArgs[$newIndex]}"
 			delete+=("versions/$inheritedVers/$inheritedVers.jar")
 			for target in "${delete[@]}"; do
 				target=$(trimCr "$target")
@@ -419,7 +419,7 @@ function install() {
 			for e in "${CPInAnArray[@]}"; do
 				[[ -n "$e" ]] && new+=("$e")
 			done
-			IFS="${sep}" classpath="${new[*]}"
+			IFS="${cmdSeparator}" classpath="${new[*]}"
 			classpath=$(trimCr "$classpath")
 			unset -v new
 			unset -v CPInAnArray
@@ -1079,8 +1079,6 @@ mkdir -p "$MCdir/natives"
 
 mkdir -p "$SHdir/versions"
 mkdir -p "$SHdir/log4jconf"
-osname="linux"
-sep=":"
 
 parameter[debugSkipAssets]=false
 parameter[modloader]=vanilla

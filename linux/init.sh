@@ -117,7 +117,7 @@ function argHandler() {
 			echo "$SHlname, version $SHlvers"
 			exit 0
 		;;
-		"--usePortableMode")
+		"-p" | "--portable")
 			portable=true
 			shift
 			argHandler "$@"
@@ -288,6 +288,15 @@ fi
 
 source "$SHdir/colorHandler.sh"
 
+case "$OSTYPE" in
+	msys*|cygwin*|win32*)  osName="windows"; cmdSeparator=';' ;;
+	darwin*)               osName="osx"; cmdSeparator=':' ;;
+	linux*)                osName="linux"; cmdSeparator=':' ;;
+	*)                     osName="unknown"; cmdSeparator=':' ;;
+esac
+
+log "INFO" "init.sh" "Resolved operating system to $osName"
+
 mkdir -p "$SHdir"
 cd "$SHdir" || cdfail
 
@@ -310,6 +319,7 @@ mkdir -p ./versions
 mkdir -p ./profiles
 mkdir -p ./commands
 mkdir -p ./instances
+mkdir -p ./manifests
 
 if ! ping -c 1 -W 3 google.com &>/dev/null; then
 	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
@@ -368,37 +378,37 @@ function mavenParser() {
 echo "Starting manifest check"
 log "DEBUG" "init.sh" "Downloading manifests..."
 if $ONLINE_MODE; then
-	if curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq . > ./temp_manifest.json; then
-		cat ./temp_manifest.json > ./vanilla_version_manifest.json
+	if curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq '.' > manifests/temp_manifest.json; then
+		cat manifests/temp_manifest.json > manifests/vanilla_version_manifest.json
 	else
 		log "WARN" "init.sh" "Vanilla manifest download failed, invalid JSON file"
 		printf "${RED}[ERROR]${RED} The newly downloaded vanilla manifest seem invalid, the old one will be used instead${RESET}\n"
 	fi
 
-	if curl -so ./temp_manifest.xml https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml; then
-		readarray -t NeoVersions < <(grep -oP '(?<=<version>).*?(?=</version>)' ./temp_manifest.xml)
+	if curl -so manifests/temp_manifest.xml https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml; then
+		readarray -t NeoVersions < <(grep -oP '(?<=<version>).*?(?=</version>)' manifests/temp_manifest.xml)
 		# shellcheck disable=SC2207
 		IFS=$'\n' NeoVersions=($(sort <<<"${NeoVersions[*]}"))
 		printf '%s\n' "${NeoVersions[@]}" | jq -Rs 'split("\n")[:-1]' \
-			> ./neoforge_version_manifest.json
-		command -p rm ./temp_manifest.xml
-		command -p rm ./temp_manifest.json
+			> manifests/neoforge_version_manifest.json
+		command -p rm manifests/temp_manifest.xml
+		command -p rm manifests/temp_manifest.json
 	else
 		log "WARN" "init.sh" "Neoforge manifest download failed, invalid JSON file"
 		printf "${RED}[ERROR]${RED} The newly downloaded Neoforge manifest seem invalid, the old one will be used instead${RESET}\n"
-		command -p rm ./temp_manifest.json 2>/dev/null
+		command -p rm manifests/temp_manifest.json 2>/dev/null
 	fi
 else
 	printf "${YELLOW_BOLD}[WARN]${YELLOW} Unable to reload some manifest file, old one will be used instead${RESET}\n"
 fi
-if [ ! -f ./vanilla_version_manifest.json ] || [ ! -s ./vanilla_version_manifest.json ]; then
+if [ ! -f manifests/vanilla_version_manifest.json ] || [ ! -s manifests/vanilla_version_manifest.json ]; then
 	log "ERROR" "init.sh" "Vanilla version manifest is corrupted or empty"
 	printf "${RED_BOLD}[ERROR]${RED} Invalid version manifest : file is missing or empty. You will not be able to download or repair any Vanilla game instances. Restart the launcher to reload the manifest${RESET}\n"
 fi
 
-if [ ! -f ./neoforge_version_manifest.json ] || [ ! -s ./neoforge_version_manifest.json ]; then
+if [ ! -f manifests/neoforge_version_manifest.json ] || [ ! -s manifests/neoforge_version_manifest.json ]; then
 	log "ERROR" "init.sh" "Neoforge version manifest is corrupted or empty"
-	printf "${RED_BOLD}[ERROR]${RED} Invalid version manifest : file is missing or empty. You will not be able to download or repair any Neoforge game instances. Restart the launcher to reload the manifest${RESET}\n"
+	printf "${RED_BOLD}[ERROR]${RED} Invalid version manifest : file is missing or empty. You will not be able to list any Neoforge versions. Restart the launcher to reload the manifest${RESET}\n"
 fi
 echo "Finished manifest check"
 printf "${GREEN_BOLD}Start successful *\\(^o^)/*${RESET}\n"

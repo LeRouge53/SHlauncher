@@ -17,7 +17,7 @@ substituteArg() {
 
 	arg="${arg//'${natives_directory}'/$nativesDir}"
 	arg="${arg//'${library_directory}'/"./libraries"}"
-	arg="${arg//'${classpath_separator}'/":"}" # à remplacer sur linux par un ":"
+	arg="${arg//'${classpath_separator}'/"$cmdSeparator"}"
 	arg="${arg//'${version_name}'/"${modloader}-${fullModLoaderVers}"}" # en gros c'est <ModlName>-<Modlvers>
 
 	arg="${arg//'${launcher_name}'/$SHlname}"
