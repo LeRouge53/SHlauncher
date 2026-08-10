@@ -2,6 +2,9 @@
 SHlauncher is a CLI minecraft launcher written entirely in bash with minimal dependencies.
 It has the goal of being as light as possible (unlike electron launchers)
 
+# MAJOR WARNING
+SHlauncher is still in early access, Everything is subject to changes and I am planning to merge the windows version to use linux
+
 ## Dependencies
 
 The launcher uses as a main dependency ([jq](https://github.com/jqlang/jq)) which IS required for the launcher to function properly. But to keep the portability, a binary can provided (should be stored at ".minecraft/SHlauncher/jq/") and will be used when using the flag `--portable`
@@ -32,3 +35,7 @@ This list is sorted in the order in which I would like to create them
 
 ## License
 This project is licensed under the GNU General Public License Version 3.0
+
+## Note
+
+Please note that although there is a windows version, it isn't really made to be useful. It is very slow buggy compared to the linux version. Consider using it instead
