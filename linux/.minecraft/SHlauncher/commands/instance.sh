@@ -113,8 +113,8 @@ function create() {
 		# shellcheck disable=SC2154 # il l'est
 		gameDir="$MCdir/instances/$name/"
 		mkdir -p "$gameDir"
-	elif [[ -n "${parameter[anotherGameDir]}" ]]; then
-		gameDir="${parameter[anotherGameDir]}"
+	elif [[ -n "${parameter[customGameDir]}" ]]; then
+		gameDir="${parameter[customGameDir]}"
 	else
 		# shellcheck disable=SC2154
 		gameDir="$MCdir/"

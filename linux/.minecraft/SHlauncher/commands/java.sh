@@ -49,7 +49,7 @@ function install() {
 			mkdir -p "$versionDir"
 			if [ "$osName" = "windows" ]; then
 				tmpfile=$(mktemp)
-            	unzip -Z1 ./temp_archive.zip > "$tmpfile"
+            	unzip -Z1 ./temp_archive.compressed > "$tmpfile"
             	read -r DirToNuke<"$tmpfile"
             	rm "$tmpfile"
             	if ! exceptionCatch "java.sh:install" unzip -qod "$versionDir" ./temp_archive.compressed; then
@@ -59,7 +59,7 @@ function install() {
             	mv "$versionDir/$DirToNuke"* "$version"
             	command -p rm -rf "${versionDir:?}/$DirToNuke"
 			else
-				if ! exceptionCatch "java.sh:install" tar xzf ./temp_archive.tar.gz -C "$version" --strip-components=1; then
+				if ! exceptionCatch "java.sh:install" tar xzf ./temp_archive.compressed -C "$version" --strip-components=1; then
 					printf "${RED_BOLD}An error occurred when attempting to unzip the java archive, check the log file for more info${RESET}\n"
 					return 1
 				fi
