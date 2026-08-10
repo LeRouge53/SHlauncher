@@ -402,7 +402,7 @@ function install() {
 				fi
 			done
 			tempArgs[newIndex]=${tempArgs[newIndex]//'${library_directory}'/"libraries"}
-			tempArgs[newIndex]=${tempArgs[newIndex]//'${classpath_separator}'/":"}
+			tempArgs[newIndex]=${tempArgs[newIndex]//'${classpath_separator}'/"${cmdSeparator}"}
 			mapfile -td "${cmdSeparator}" CPInAnArray <<< "$classpath"
 			mapfile -td "${cmdSeparator}" delete <<< "${tempArgs[$newIndex]}"
 			delete+=("versions/$inheritedVers/$inheritedVers.jar")

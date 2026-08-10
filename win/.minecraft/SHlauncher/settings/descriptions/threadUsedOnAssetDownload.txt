@@ -1,3 +1,0 @@
-The number of processes launched when downloading assets, an higher number should be faster.
-Please note that the "threads" are actually just different processes and may or may not separate the workload efficiently.
-For Windows users : putting too much processes may heavily slow down asset downloading.

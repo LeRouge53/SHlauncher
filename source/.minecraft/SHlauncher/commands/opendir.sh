@@ -30,4 +30,9 @@ fi
 
 path=$(jq -r '.gameDir' "$SHdir/instances/$targetInst.json")
 log "INFO" "opendir.sh" "Opening directory \"$path\" linked to instance \"$targetInst\""
-xdg-open "$path"
+
+if [ "$osName" == "linux" ]; then
+	xdg-open "$path"
+elif [ "$osName" == "windows" ]; then
+	/c/Windows/explorer.exe "$path"
+fi

@@ -364,34 +364,17 @@ notes.txt
 launcher project.code-workspace
 
 # For the launcher (does not include game and generated files)
-linux/.minecraft/*
-!linux/.minecraft/SHlauncher/
+source/.minecraft/*
+!source/.minecraft/SHlauncher/
 
-linux/.minecraft/SHlauncher/*
-!linux/.minecraft/SHlauncher/*.sh
-!linux/.minecraft/SHlauncher/commands/
-!linux/.minecraft/SHlauncher/help/
-!linux/.minecraft/SHlauncher/settings/
+source/.minecraft/SHlauncher/*
+!source/.minecraft/SHlauncher/*.sh
+!source/.minecraft/SHlauncher/commands/
+!source/.minecraft/SHlauncher/help/
+!source/.minecraft/SHlauncher/settings/
 
-linux/.minecraft/SHlauncher/settings/*
-!linux/.minecraft/SHlauncher/settings/data/
-!linux/.minecraft/SHlauncher/settings/descriptions/
+source/.minecraft/SHlauncher/settings/*
+!source/.minecraft/SHlauncher/settings/data/
+!source/.minecraft/SHlauncher/settings/descriptions/
 
-linux/.minecraft/SHlauncher/settings/data/user.json
-
-
-# Windows
-win/.minecraft/*
-!win/.minecraft/SHlauncher/
-
-win/.minecraft/SHlauncher/*
-!win/.minecraft/SHlauncher/*.sh
-!win/.minecraft/SHlauncher/commands/
-!win/.minecraft/SHlauncher/help/
-!win/.minecraft/SHlauncher/settings/
-
-win/.minecraft/SHlauncher/settings/*
-!win/.minecraft/SHlauncher/settings/data/
-!win/.minecraft/SHlauncher/settings/descriptions/
-
-win/.minecraft/SHlauncher/settings/data/user.json
+source/.minecraft/SHlauncher/settings/data/user.json

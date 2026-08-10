@@ -3,7 +3,7 @@ SHlauncher is a CLI minecraft launcher written entirely in bash with minimal dep
 It has the goal of being as light as possible (unlike electron launchers)
 
 # MAJOR WARNING
-SHlauncher is still in early access, Everything is subject to changes and I am planning to merge the windows version to use linux
+SHlauncher is still in early access, Everything shown here is subject to changes
 
 ## Dependencies
 
@@ -38,4 +38,4 @@ This project is licensed under the GNU General Public License Version 3.0
 
 ## Note
 
-Please note that although there is a windows version, it isn't really made to be useful. It is very slow buggy compared to the linux version. Consider using it instead
+Please note that although the script is universal and should work both on linux and windows, it isn't really made to be useful and I am just keeping it because I am on a windows computer half of the time. It is very slow buggy compared to the linux version. If you still want to use it, you should use the [MSYS2](https://www.msys2.org/) terminal environment with the required dependencies.
