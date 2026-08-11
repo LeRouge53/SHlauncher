@@ -70,7 +70,7 @@ function install() {
 				command -p rm ./temp_archive.compressed
 			else
 				printf "${RED_BOLD}Installation seemed to have failed,${RESET}${RED} if you have any issues, retry with \"-r\"${RESET}\n"
-				log "INFO" "java.sh:install" "Install seem to have failed, \"$versionDir/bin/java\" seems not to exist"
+				log "WARN" "java.sh:install" "Install seem to have failed, \"$versionDir/bin/java\" seems not to exist"
 				command -p rm ./temp_archive.compressed
 				return 1
 			fi
@@ -105,7 +105,7 @@ detect_arch() {
 	case "$arch" in
 		i386|i686)   echo "x86"    ;;
 		x86_64)      echo "x86_64" ;;
-		aarch64)     echo "arm64"  ;;
+		aarch64)     echo "aarch64"  ;;
 		*)           echo "$arch"  ;;
 	esac
 }
