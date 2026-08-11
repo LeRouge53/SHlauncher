@@ -98,7 +98,7 @@ portable=false
 IFSBak=$' \t\n'
 cip=true
 export SHlname="SHlauncherBE"
-export SHlvers="0.2.0"
+export SHlvers="0.3.0"
 # shellcheck disable=SC2329
 function trimCr() { 
 	printf '%s' "${1%$'\r'}"

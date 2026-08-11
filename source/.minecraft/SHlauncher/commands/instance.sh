@@ -187,7 +187,7 @@ function helpPage() {
 	printf " - \"-a\" | \"--anotherGameDir\" : (incompatible with -c) Sets the games directory to a generated one\n"
 }
 
-function Main() {
+function argHandler() {
 	case $1 in
 		"create")
 			shift 
@@ -240,7 +240,7 @@ fi
 log "INFO" "settings.sh" "instance.sh called with instructions ${instructions[*]}"
 
 # shellcheck disable=SC2154
-Main "${instructions[@]}"
+argHandler "${instructions[@]}"
 
 unset parameter
 declare -gA parameter
