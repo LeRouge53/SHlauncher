@@ -4,7 +4,7 @@ function helpPage() {
 	printf "${CYAN}Usage :${RESET} opendir [<instance name>]\n"
 	printf "Open the directory of the provided instance with your regular file explorer\n"
 	printf "Default to the selected instance if <instance name> is unspecified\n"
-	printf "To actually use \"help\" as an instance name, type \"\\help\" instead\n"
+	printf "To actually use \"help\" as an instance name, type \"\\help\"\n"
 }
 
 log "INFO" "opendir.sh" "opendir.sh called with instructions ${instructions[*]}"
@@ -35,4 +35,6 @@ if [ "$osName" == "linux" ]; then
 	xdg-open "$path"
 elif [ "$osName" == "windows" ]; then
 	/c/Windows/explorer.exe "$path"
+else
+  open "$path"
 fi

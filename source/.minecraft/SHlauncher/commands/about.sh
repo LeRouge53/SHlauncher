@@ -1,8 +1,8 @@
 # shellcheck disable=SC2154
 
 function about() {
-	printf "${BLUE}SHlauncher${RESET}, created by LeRouge53.\n"
-	printf "${BLUE}Git repository${RESET}: https://github.com/leRouge53/SHlauncher (currently private)\n"
+	printf "${BLUE}SHlauncher${RESET}, created by LeRouge53\n"
+	printf "${BLUE}Git repository${RESET}: https://github.com/leRouge53/SHlauncher\n"
 	printf "${BLUE}license${RESET}: GPL v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)\n"
 	printf "Thanks you for using this launcher\n"
 
@@ -168,7 +168,7 @@ function helpPage() {
 	printf "${CYAN}Argument list${RESET} :\n"
 	printf " - get-started: Prints the get started page of SHlauncher\n"
 	printf " - version: Show the version of the launcher\n"
-	printf " - about (or nothing): Show the useful information and links\n"
+	printf " - about (or nothing): Show useful information and links\n"
 	printf " - help: Print this help\n"
 }
 

@@ -304,8 +304,8 @@ mkdir -p "$SHdir"
 cd "$SHdir" || cdfail
 
 if ! $cip; then
-	printf "${RED_BOLD}[MAJOR WARNING]${RED} Command injection protection is disabled, DO NOT execute commands that could\n"
-	printf "${RED_BOLD}[MAJOR WARNING]${RED} lead to arbitrary code execution${RESET}\n"
+	printf "${RED_BOLD}[MAJOR WARNING]${RESET}${RED} Command injection protection is disabled, DO NOT execute commands that could\n"
+	printf "${RED_BOLD}[MAJOR WARNING]${RESET}${RED} lead to arbitrary code execution${RESET}\n"
 fi
 
 ONLINE_MODE=true

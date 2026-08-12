@@ -1,5 +1,5 @@
 # shellcheck disable=SC2154
-# shellcheck disable=SC2016 # non bro, c'est prévu
+# shellcheck disable=SC2016
 cd "$MCdir" || return 1
 touch .lastLaunchedGame
 
@@ -46,7 +46,7 @@ substituteArg() {
 function launch() {
 	launchProf=$1
 	launchInst=$2
-	# shellcheck disable=SC2194 # comparaison inversé 
+	# shellcheck disable=SC2194 # inverted case statement 
 	case "" in
 		"$launchProf" | "$launchInst")
 			printf "${YELLOW_BOLD}[BUG] Function launch require 2 arguments but some are missing! Check the log file for more info\n" >&2
@@ -94,7 +94,7 @@ function launch() {
 	for Fprof in ./SHlauncher/profiles/*.json; do
 		if [ "$(jq -r '.name' "$Fprof")" == "$launchProf" ]; then
 			tuuid=$(jq -r '.tuuid' "$Fprof")
-			log "DEBUG" "launch.sh:launch" "profile truncated UUID is \"$tuuid\""
+			log "DEBUG" "launch.sh:launch" "profile's truncated UUID is \"$tuuid\""
 		fi
 	done
 	if [ "$java" == "default" ]; then
