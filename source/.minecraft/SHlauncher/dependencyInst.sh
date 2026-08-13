@@ -1,6 +1,6 @@
 #!/bin/bash
 # shellcheck disable=SC2154
-if [ "${MissingDependencies[*]}" = "" ]; then
+if [ "${MissingDependencies[*]}" != "" ]; then
 	printf "${RED}[FATAL] Failed to launch : The following dependency(ies) are missing :${RESET}\n"
 
 	if [[ "${MissingDependencies[*]}" =~ jq ]]; then 
