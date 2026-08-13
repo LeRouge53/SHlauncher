@@ -1,4 +1,4 @@
-#shellcheck shell=bash
+# shellcheck shell=bash
 # shellcheck disable=SC2059
 
 function terminate() {
@@ -25,7 +25,7 @@ case $1 in
 	;;
 	"POSIX")
 		echo " The launcher is currently being run by an incompatible POSIX shell (like sh, ash or dash)"
-		echo " - Please use bash or zsh instead (or disable posix mode if you are already using those)"
+		echo " - Please use bash instead (or disable posix mode)"
 		terminate
 		exit 3
 	;;

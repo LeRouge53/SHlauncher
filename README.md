@@ -10,7 +10,7 @@ SHlauncher is still in early access, Everything shown here is subject to changes
 The launcher uses as a main dependency ([jq](https://github.com/jqlang/jq)) which IS required for the launcher to function properly. But to keep the portability, a binary can be provided (should be stored at ".minecraft/SHlauncher/jq/") and will be used when using the flag `--portable`
 
 Without counting jq, the launcher also relies on tools that are usually preinstalled, like `sha1sum` `curl` `unzip` `gz` `tar` `awk` etc...
-Please note that the launcher is not POSIX-compliant. It only support bash. This script wasn't tested with zsh and does not support sh, ash, dash and fish
+Please note that the launcher is not POSIX-compliant and only support bash. This script wasn't tested with zsh and does not support sh, ash, dash and fish
 
 ## Features
 - **Colors** : The launcher uses by default the 24 bit color system (Can be disabled or modified)
@@ -19,7 +19,7 @@ Please note that the launcher is not POSIX-compliant. It only support bash. This
 
 - **Modloader support** : SHlauncher supports the Neoforge modloader
 
-- **Internal shell** : The script uses an internal shell instead of the normal bash shell. It allows the launcher to use a personalized prompt string (`PS1`), hold an history and keep an clean environment.
+- **Internal shell** : The script uses an internal shell instead of the normal bash shell. It allows the launcher to use a personalized prompt string (`PS1`), hold an history and keep a clean environment.
 
 - **Setting system** : The launcher uses a settings-based system to store information between shutdowns with everything being accessible to the user
 
@@ -38,4 +38,4 @@ This project is licensed under the GNU General Public License Version 3.0
 
 ## Note
 
-Please note that although the script is universal and should work both on linux and windows, it isn't really made to be useful and I am just keeping it because I am on a windows computer half of the time. It is very slow buggy compared to the linux version. If you still want to use it, you should use the [MSYS2](https://www.msys2.org/) terminal environment with the required dependencies.
+Please note that although the script is universal and should work both on linux and windows, The windows version isn't meant to be useful and I am just keeping it to work on it at all time. It is very slow and glitchy compared to the linux version. If you still want to use it, please use the the [MSYS2](https://www.msys2.org/) terminal environment with the required dependencies.

@@ -189,7 +189,7 @@ if ! jq --version &>/dev/null; then
 	log "FATAL" "init.sh" "JQ was not found in the PATH, crash imminent"
 	MissingDependencies+=("jq")
 fi
-if ! unzip --version &>/dev/null; then
+if ! unzip --help &>/dev/null; then
 	log "FATAL" "init.sh" "Unzip was not found in the PATH, crash imminent"
 	MissingDependencies+=("unzip")
 fi

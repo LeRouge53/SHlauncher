@@ -31,14 +31,14 @@ function helpPage() {
 	printf "${CYAN}Argument list :${RESET}\n"
 	printf "help : Print this help\n"
 	printf "list : List all available profiles (selected or not)\n"
-	printf "auth : Create a premium profile using a microsoft account (PLANNED)\n"
-	printf "reset : deselect a profile and restore it to \"None\"\n"
+	printf "auth : Get premium profile using a microsoft account (PLANNED)\n"
+	printf "reset : deselect the current profile and restore it to \"None\"\n"
 	printf "create <username> : create a profile with the username\n"
 	printf "select <username> : select the profile corresponding to the username\n"
 	printf "remove <username> : delete the profile corresponding to the username\n"
 }
 
-log "INFO" "profile.sh" "instance.sh called with instructions $*"
+log "INFO" "profile.sh" "profile.sh called with instructions $*"
 
 case $1 in
 	"list")

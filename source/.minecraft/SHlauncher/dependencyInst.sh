@@ -1,12 +1,12 @@
 #!/bin/bash
 # shellcheck disable=SC2154
-if [[ -z ${MissingDependencies[*]} ]]; then
+if [ ${MissingDependencies[*]} = "" ]; then
 	printf "${RED}[FATAL] Failed to launch : The following dependency(ies) are missing :${RESET}\n"
 
-	if [ "${MissingDependencies[*]}" = "jq" ]; then 
+	if [[ "${MissingDependencies[*]}" =~ jq ]]; then 
 		echo "jq : JSON shell interpreter"
 	fi
-	if [ "${MissingDependencies[*]}" = "unzip" ]; then
+	if [[ "${MissingDependencies[*]}" =~ unzip ]]; then
 		echo "unzip : ZIP file decompressor"
 	fi
 
@@ -14,24 +14,24 @@ if [[ -z ${MissingDependencies[*]} ]]; then
 	if [ "$yn" = "y" ]; then
 		if "$ONLINE_MODE"; then
 			if [ "$osName" = "windows" ]; then
-				[ "${MissingDependencies[*]}" = "jq" ] && {
+				[[ "${MissingDependencies[*]}" =~ jq ]] && {
 					if ! exceptionCatch "dependencyInst.sh" pacman -S msys/jq; then
 						printf "${RED_BOLD}Failed to install jq, check the log file for more info${RESET}\n"
 					fi
 				}
-				[ "${MissingDependencies[*]}" = "unzip" ] && {
+				[[ "${MissingDependencies[*]}" =~ unzip ]] && {
 					if ! exceptionCatch "dependencyInst.sh" pacman -S msys/unzip; then
 						printf "${RED_BOLD}Failed to install unzip, check the log file for more info${RESET}\n"
 					fi
 				}
 			else
 				printf "${YELLOW}Root access is required for installation${RESET}\n"
-				[ "${MissingDependencies[*]}" = "jq" ] && { 
+				[[ "${MissingDependencies[*]}" =~ jq ]] && { 
 					if ! exceptionCatch "dependencyInst.sh" sudo apt install jq; then
 						printf "${RED_BOLD}Failed to install jq, check the log file for more info${RESET}\n"
 					fi
 				}
-				[ "${MissingDependencies[*]}" = "unzip" ] && {
+				[[ "${MissingDependencies[*]}" =~ unzip ]] && {
 					if ! exceptionCatch "dependencyInst.sh" sudo apt install unzip; then
 						printf "${RED_BOLD}Failed to install unzip, check the log file for more info${RESET}\n"
 					fi

@@ -360,8 +360,8 @@ MigrationBackup/
 
 .vscode/
 .shellcheckrc
-notes.txt
-launcher project.code-workspace
+*.txt
+*.code-workspace
 
 # For the launcher (does not include game and generated files)
 source/.minecraft/*
