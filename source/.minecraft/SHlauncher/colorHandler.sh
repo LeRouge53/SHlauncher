@@ -32,6 +32,8 @@ if $color; then
 		WHITE_BOLD=${WHITE}$'\033[1m'
 		WHITE_DIM=${WHITE}$'\033[2m'
 		WHITE_UNDER=${WHITE}$'\033[4m'
+
+    RESET=$'\033[0m'
 		log "INFO" "colorHandler.sh" "Colors loaded (use24bit)"
 	elif [ "${Sett[Color]}" = "use8" ]; then
 		RED_BOLD=$'\e[1;31m'
@@ -63,6 +65,8 @@ if $color; then
 		WHITE_DIM=$'\e[2;37m'
 		WHITE_UNDER=$'\e[4;37m'
 		WHITE=$'\e[37m'
+
+    RESET=$'\033[0m'
 		log "INFO" "colorHandler.sh" "Colors loaded (use8)"
 	elif [ "${Sett[Color]}" = "NoColor" ]; then
 		RED_BOLD=$'\033[1m'
@@ -94,42 +98,14 @@ if $color; then
 		WHITE_DIM=$'\033[2m'
 		WHITE_UNDER=$'\033[4m'
 		WHITE=$'\O33[0m'
+
+    RESET=$'\033[0m'
 		log "INFO" "colorHandler.sh" "Colors loaded (NoColor)"
 	fi
 else
-	RED_BOLD=$'\033[0m'
-	RED_DIM=$'\033[0m'
-	RED_UNDER=$'\033[0m'
-	RED=$'\033[0m'
-	
-	GREEN_BOLD=$'\033[0m'
-	GREEN_DIM=$'\033[0m'
-	GREEN_UNDER=$'\033[0m'
-	GREEN=$'\033[0m'
-
-	YELLOW_BOLD=$'\033[0m'
-	YELLOW_DIM=$'\033[0m'
-	YELLOW_UNDER=$'\033[0m'
-	YELLOW=$'\033[0m'
-
-	BLUE_BOLD=$'\033[0m'
-	BLUE_DIM=$'\033[0m'
-	BLUE_UNDER=$'\033[0m'
-	BLUE=$'\033[0m'
-
-	CYAN_BOLD=$'\033[0m'
-	CYAN_DIM=$'\033[0m'
-	CYAN_UNDER=$'\033[0m'
-	CYAN=$'\033[0m'
-
-	WHITE_BOLD=$'\033[0m'
-	WHITE_DIM=$'\033[0m'
-	WHITE_UNDER=$'\033[0m'
-	WHITE=$'\033[0m'
 	log "INFO" "colorHandler.sh" "Colors loaded (disabled)"
 fi
 
-RESET=$'\033[0m'
 RL_START=$'\001'
 RL_END=$'\002'
 log "DEBUG" "colorHandler.sh" "Finished loading colors"
