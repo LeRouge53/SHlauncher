@@ -325,7 +325,7 @@ mkdir -p ./manifests
 if [ "$osName" = "windows" ]; then
 	/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null
 	pingExitCode=$?
-elif [ "$osName" != "unknown" ]
+elif [ "$osName" != "unknown" ]; then
 	ping -c 1 -W 3 google.com &>/dev/null
 	pingExitCode=$?
 else

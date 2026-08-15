@@ -1,13 +1,11 @@
 # shellcheck disable=SC2059
 # shellcheck disable=SC2154
 function list() {
-		"$SHdir/java/$1/bin/java" -version
 	local allVers=(8 16 17 21 25)
 	for version in "${allVers[@]}"; do
 		printf "${BLUE_BOLD}Java $version:${RESET}\n"
 		if ! "$SHdir/java/$version/bin/java" -version 2>/dev/null; then
 			printf "${YELLOW}Java $version is not installed${RESET}\n"
-			return
 		fi
 		echo ""
 	done
