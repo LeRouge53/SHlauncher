@@ -98,7 +98,7 @@ portable=false
 IFSBak=$' \t\n'
 cip=true
 export SHlname="SHlauncherBE"
-export SHlvers="0.3.2"
+export SHlvers="0.3.3"
 # shellcheck disable=SC2329
 function trimCr() { 
 	printf '%s' "${1%$'\r'}"
@@ -176,8 +176,6 @@ export MissingDependencies=()
 
 mkdir -p "$SHdir/jq"
 if $portable; then
-	printf "${YELLOW_BOLD}[WARN]${YELLOW} You are using SHlauncher in portable mode, which uses a self-stored jq command. \n${YELLOW_BOLD}[WARN]${YELLOW} This is NOT ideal as this version cannot be updated\n"
-	printf "${YELLOW_BOLD}[WARN]${YELLOW} Please consider disabling portable mode${RESET}\n"
 	if exceptionCatch "init.sh" "$SHdir/jq" --version; then
 		PATH="$PATH:$SHdir/jq"
 	else
@@ -324,19 +322,25 @@ mkdir -p ./commands
 mkdir -p ./instances
 mkdir -p ./manifests
 
-if [ $osName = "windows" ]; then
+if [ "$osName" = "windows" ]; then
 	/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null
 	pingExitCode=$?
-else
+elif [ "$osName" != "unknown" ]
 	ping -c 1 -W 3 google.com &>/dev/null
 	pingExitCode=$?
+else
+  log "WARN" "init.sh" "Uknown operating system, ping feature may not work"
+  ping -c 1 -W 3 google.com &>/dev/null
+  pingExitCode=$?
 fi
 
-if [ "$pingExitCode" != 0 ]; then
+if [ "$pingExitCode" != 0 ] && [ "$pingExitCode"  != 127 ]; then
 	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
 	printf "${RED_BOLD}[ERROR]${RED} This launcher requires an Internet connection for almost everything, an offline mode exist but is very limited.\n"
 	printf "${RED_BOLD}[ERROR]${RED} Restart or reset the launcher to switch back to Online mode${RESET}\n"
 	ONLINE_MODE=false
+elif [ "$pingExitCode" = 127 ]; then
+  log "WARN" "init.sh" "Can't ping, \"ping\" command not found"
 fi
 
 export ONLINE_MODE

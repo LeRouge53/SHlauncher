@@ -130,5 +130,6 @@ while true; do
 		;;
 		*)
 			echo "Unknown command: $cmd"
+      log "ERROR" "core.sh" "Command not found : \"$cmd\""
 	esac
 done

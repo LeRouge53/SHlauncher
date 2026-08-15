@@ -195,11 +195,14 @@ function argHandler() {
 	esac
 }
 
-log "INFO" "about.sh" "settings.sh called with instructions ${instructions[*]}"
-
 parameter[showDeathThreats]=false
 declareArgs showDeathThreats NoShort flag
 
 globalArgHandler "$@"
 
+log "INFO" "about.sh" "about.sh called with instructions ${instructions[*]}"
+
 argHandler "${instructions[@]}"
+
+unset parameter
+declare -gA parameter
