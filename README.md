@@ -38,4 +38,4 @@ This project is licensed under the GNU General Public License Version 3.0
 
 ## Note
 
-Please note that although the script is universal and should work both on linux and windows, The windows version isn't meant to be useful and I am just keeping it to work on it at all time. It is very slow and glitchy compared to the linux version. If you still want to use it, please use the the [MSYS2](https://www.msys2.org/) terminal environment with the required dependencies.
+Please note that although the script is universal and should work both on linux and windows, The windows version isn't meant to be useful and I am just keeping it to work on it at all time. It is very slow and glitchy compared to the linux version. If you still want to use it, please use the [MSYS2](https://www.msys2.org/) terminal environment with the required dependencies.
