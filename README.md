@@ -13,7 +13,7 @@ Without counting jq, the launcher also relies on tools that are usually preinsta
 Please note that the launcher is not POSIX-compliant and only support bash. This script wasn't tested with zsh and does not support sh, ash, dash and fish
 
 ## Features
-- **Colors** : The launcher uses by default the 24 bit color system (Can be disabled or modified)
+- **Colors** : The launcher uses by default the 24 bit color system, ensuring that every colors are displayed properly (it can be disabled or modified)
 
 - **Multi-instances system** : The launcher support managing multiples instances/profiles
 
@@ -32,6 +32,12 @@ This list is sorted in the order in which I would like to create them
 - **More modloader support** : I want to add fabric to the launcher (forge and quilt will come afterwards)
 
 - **Server support** : Yes, the launcher doesn't support servers yet
+
+## Installation
+
+1. Clone the repository with `git clone "https://github.com/LeRouge53/SHlauncher.git"`
+2. Start the launcher by executing `init.sh` with bash located in the `source` folder
+3. (Optional) Create a symlink with `init.sh` as the target and put it in your `PATH` variable
 
 ## License
 This project is licensed under the GNU General Public License Version 3.0
