@@ -50,7 +50,7 @@ function log() {
 			printf "${RED_BOLD}[%s/%s]${RESET}${RED_BOLD} %s\n${RESET}" "$level" "$source" "$msg" >&2
 		;;
 		"DEBUG")
-			printf "${CYAN_BOLD}[%s/%s]${RESET}${CYAN} %s\n${RESET}" "$level" "$source" "$msg" >&2
+			$debug && printf "${CYAN_BOLD}[%s/%s]${RESET}${CYAN} %s\n${RESET}" "$level" "$source" "$msg" >&2
 		;;
 		*)
 			printf "${WHITE_BOLD}[%s/%s]${RESET}${WHITE} %s\n${RESET}" "$level" "$source" "$msg" >&2
@@ -115,7 +115,7 @@ function argHandler() {
 	case $1 in
 		"-v" | "--version")
 			echo "$SHlname, version $SHlvers"
-			exit 0
+			exit
 		;;
 		"-p" | "--portable")
 			portable=true

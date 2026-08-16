@@ -48,10 +48,9 @@ The available command are :
 		- ${WHITE_BOLD}exit ${RESET}: shut down the launcher
 	- ${CYAN_BOLD}Others : 
 		- ${WHITE_BOLD}clear ${RESET}: clear the terminal
-		- ${WHITE_BOLD}reset ${RESET}: reset the launcher (closes and open back the launcher)
-		- ${WHITE_BOLD}debug ${RESET}: same effect as reset, but enable debug mode
-    - ${WHITE_BOLD}trace ${RESET}: same effect as reset, but enable trace 
-		- ${WHITE_BOLD}echo ${RESET}: print()
+		- ${WHITE_BOLD}reset ${RESET}: reset the launcher (closes and open back the launcher).
+		- ${WHITE_BOLD}echo ${RESET}: Display the provided argument to the screen (like the bash counterpart)
+		- ${WHITE_BOLD}log ${RESET}: add a message in the log file (at "<SHlauncher directory>/SHlog.log")
 And please note that the majority of those commands have an integrated help page available
 when using "<command name> help".
 

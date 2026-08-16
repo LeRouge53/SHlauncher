@@ -3,7 +3,7 @@ function list() {
 	printf "| %-50s | %-30s | %-42s | %-12s |\n" "SETTING NAME" "SETTING ID" "VALUE" "TYPE"
 	mapfile -t settingName < <(jq -r '.settings | to_entries[] | .key' "data/user.json")
 	for (( i=0; i<${#settingName[@]}; i++ )); do
-		log "DEBUG" "settings.sh:list" "Checking settings \"${settingName[i]}\""
+		log "DEBUG" "settings.sh:list" "Checking setting \"${settingName[i]}\""
 		settingName[i]=$(trimCr "${settingName[i]}")
 
 		settingValue=$(trimCr "$(jq -r --argjson i "$i" '.settings | to_entries[$i] | .value' "data/user.json")")
@@ -14,7 +14,7 @@ function list() {
 			printf "|-------------------------------------------------------------------------------------------------------------------------------------------------|\n"
 			printf "| %-50s | %-30s | %-42s | %-12s |\n" "$settingDisplayName" "${settingName[i]}" "$settingValue" "$settingType"
 		else
-			log "WARN" "settings.sh:list" "Did not show \"${settingName[i]}\" because it was marked as hidden. Use the parameter \"-a\" view it"
+			log "WARN" "settings.sh:list" "Did not show \"${settingName[i]}\" because it was marked as hidden. Use the parameter \"-a\" to view it"
 		fi
 	done
 	printf "|=================================================================================================================================================|\n"

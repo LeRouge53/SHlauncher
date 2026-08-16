@@ -97,21 +97,7 @@ while true; do
 			cd "$dir/"
 			history -w
 			set +x
-			exec ./init.sh
-		;;
-		"debug")
-			# shellcheck disable=SC2164
-			cd "$dir/"
-			history -w
-			set +x
-			exec ./init.sh --debug
-		;;
-		"trace")
-			# shellcheck disable=SC2164
-			cd "$dir/"
-			history -w
-			set +x
-			exec ./init.sh --trace
+			exec ./init.sh "$@"
 		;;
 		"clear")
 			clear
