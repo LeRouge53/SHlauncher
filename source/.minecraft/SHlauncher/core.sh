@@ -92,6 +92,9 @@ while true; do
 		"about")
 			source ./about.sh "$@"
 		;;
+		"help")
+			source ./about.sh "get-started"
+		;;
 		"reset")
 			# shellcheck disable=SC2164
 			cd "$dir/"
