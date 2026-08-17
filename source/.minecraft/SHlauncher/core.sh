@@ -1,4 +1,4 @@
-#shellcheck source=./commands/profile.sh
+# shellcheck source=./commands/profile.sh
 # shellcheck disable=SC2059
 # shellcheck disable=SC2154
 
