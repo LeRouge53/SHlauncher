@@ -1,6 +1,6 @@
 # shellcheck disable=SC2154
 # shellcheck disable=SC2016
-cd "$MCdir" || return 1
+cd "$MCdir" || return 255
 touch .lastLaunchedGame
 
 substituteArg() {
@@ -51,7 +51,7 @@ function launch() {
 		"$launchProf" | "$launchInst")
 			printf "${YELLOW_BOLD}[BUG] Function launch require 2 arguments but some are missing! Check the log file for more info\n" >&2
 			log "ERROR" "launch.sh:launch" "BUG : Some argument are missing. Expected argument: launchProf \"$launchProf\", launchInst \"$launchInst\""
-			return 1
+			return 2
 		;;
 		*)
 			true
@@ -143,7 +143,7 @@ function launch() {
 	if [ "$exitCode" -ne 0 ]; then
 		echo ""
 		printf "${RED_BOLD}The game crashed or did not returned successfully (exit code %s)! Check the crash-report or the log file for more info${RESET}\n" "$exitCode"
-		return 1
+		return "$exitCode"
 	else
 		printf "${GREEN_BOLD}Game returned without issues (exit code 0)${RESET}\n"
 	fi
@@ -163,7 +163,7 @@ function argHandler() {
 		"-p" | "--profile")
 			usrn=$2
 			isDone=false
-			if [ "$usrn" == "" ]; then printf "${RED_BOLD}\"-p\" require the username of a created profile${RESET}\n"; return 1; fi
+			if [ "$usrn" == "" ]; then printf "${RED_BOLD}\"-p\" require the username of a created profile${RESET}\n"; return 2; fi
 			for Fprof in "$dir"/.minecraft/SHlauncher/profiles/*.json; do
 				if [ "$usrn" == "$(jq -r '.name' "$Fprof")" ]; then
 					launchProf=$usrn
@@ -171,14 +171,14 @@ function argHandler() {
 					isDone=true
 				fi
 			done
-			if ! $isDone; then printf "${RED_BOLD}The entered profile \"$usrn\" does not exist${RESET}\n"; return 1; fi
+			if ! $isDone; then printf "${RED_BOLD}The entered profile \"$usrn\" does not exist${RESET}\n"; return 2; fi
 			shift 2
 			argHandler "$@"
 		;;
 		"-i" | "--instance")
 			inst=$2
-			if [ "$inst" == "" ]; then printf "${RED_BOLD}\"-i\" require the name of a created instance${RESET}\n"; return 1; fi
-			if ! [[ -f "./SHlauncher/instances/$inst.json" ]]; then printf "${RED_BOLD}The entered instance does not exist${RESET}\n"; return 1; fi
+			if [ "$inst" == "" ]; then printf "${RED_BOLD}\"-i\" require the name of a created instance${RESET}\n"; return 2; fi
+			if ! [[ -f "./SHlauncher/instances/$inst.json" ]]; then printf "${RED_BOLD}The entered instance does not exist${RESET}\n"; return 2; fi
 			launchInst=$inst
 			customLaunchInst=true
 			shift 2

@@ -1,6 +1,6 @@
 # shellcheck disable=SC2154
 # shellcheck disable=SC2016
-cd "$MCdir" || exit 1
+cd "$MCdir" || return 255
 
 function install() {
 	side="client"
@@ -14,7 +14,7 @@ function install() {
 		if [[ -z $inputFile ]] || [[ -z $outputDir ]]; then
 			printf "${YELLOW_BOLD}[BUG] function installLib require 2 argument, but some are missing! Check the log file for more info\n"
 			log "ERROR" "version.sh:install:installLib" "BUG : Some argument are missing. Expected argument: inputFile \"$inputFile\", outputDir \"$outputDir\""
-			return 1
+			return 2
 		fi
 
 		outputCp=""
@@ -159,7 +159,7 @@ function install() {
 			if [ "$url" == "" ]; then
 				printf "${RED}Invalid version, type \"version list\" to list all version available${RESET}\n"
 				log "ERROR" "version.sh:install" "Download aborted, invalid version"
-				return 1
+				return 2
 			fi
 
 			versionJson="$versDir/$targetVers/$targetVers.json"
@@ -172,7 +172,7 @@ function install() {
 				printf "${YELLOW}Failed to download the game: mismatched hash\n"
 				printf "${RED}Error is non recoverable : please retry${RESET}\n"
 				command -p rm -r -- "${versDir:?}/$targetVers"
-				return 1
+				return 2
 			fi
 		;;
 		"neoforge")
@@ -183,7 +183,7 @@ function install() {
 				if [[ -z $fullString ]]; then
 					printf "${YELLOW_BOLD}[BUG]${YELLOW} function NeoArgSubstitute require 1 entry argument, but none were ever passed! Check the log file for more info${RESET}\n" >&2
 					log "ERROR" "version.sh:install:NeoArgSubstitute" "BUG : Some argument are missing. Expected argument: fullString \"$fullString\""
-					return 1
+					return 2
 				fi
 				log "INFO" "version.sh:install:NeoArgSubstitute" "Treating fullString \"$fullString\""
 				while [[ $fullString =~ \{([^}]*)\} ]]; do
@@ -192,7 +192,7 @@ function install() {
 						printf "${YELLOW_BOLD}[BUG]${YELLOW} Function NeoArgSubstitute encountered an undefined argument when handling %s and cannot continue${RESET}\n" "$arg" >&2
 						log "ERROR" "version.sh:install:NeoArgSubstitute" "Encountered an undefined argument when treating $fullString. Cannot continue"
 						log "ERROR" "version.sh:install:NeoArgSubstitute" "This usually means the Neoforge version you are trying to download is not compatible with SHlauncher"
-						return 1
+						return 2
 					fi
 					fullString="${fullString//"{$arg}"/${installVars[$arg]}}"
 				done
@@ -223,7 +223,7 @@ function install() {
 				then
 					printf "${RED}Invalid version, type \"version list -m neoforge\" to list all version available${RESET}\n"
 					log "ERROR" "version.sh:install" "Download aborted, invalid version"
-					return 1
+					return 2
 				fi
 			else
 				printf "${GREEN}Installer already downloaded, skipping${RESET}\n"
@@ -813,8 +813,8 @@ list() {
 			unset -v toGrep
 		;;
 		"installed")
-			cd "$SHdir/versions" || return 1
-			if [ "$(ls)" == "" ]; then printf "${YELLOW}No versions are installed yet${RESET}\n";return 1; fi
+			cd "$SHdir/versions" || return 255
+			if [ "$(ls)" == "" ]; then printf "${YELLOW}No versions are installed yet${RESET}\n"; fi
 			for vers in *.json; do
 				log "DEBUG" "version.sh:list" "Checking version \"$vers\""
 				read -r name versionType runtime assetIndex currentModloader <<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.assetIndexId?) \(.modloader)"' "$vers")"
@@ -832,7 +832,7 @@ list() {
 					echo " - Uses assetIndex $assetIndex"
 				fi
 			done
-			cd "$MCdir" || return 1
+			cd "$MCdir" || return 255
 		;;
 		"latest")
 			if [ "$modloader" == "vanilla" ]; then

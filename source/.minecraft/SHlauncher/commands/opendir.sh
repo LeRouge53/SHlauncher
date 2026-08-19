@@ -22,10 +22,10 @@ fi
 
 if [ "$targetInst" == "None" ]; then
 	printf "${RED_BOLD}You did not selected or specified any instances, please do!${RESET}\n"
-	return 1
+	return 2
 elif ! [[ -f "$SHdir/instances/$targetInst.json" ]]; then
 	printf "${RED_BOLD}The targeted instance doesn't exist${RESET}\n"
-	return 1
+	return 2
 fi
 
 path=$(jq -r '.gameDir' "$SHdir/instances/$targetInst.json")

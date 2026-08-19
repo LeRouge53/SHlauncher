@@ -34,7 +34,6 @@ if $color; then
 		WHITE_UNDER=${WHITE}$'\033[4m'
 
     RESET=$'\033[0m'
-		log "INFO" "colorHandler.sh" "Colors loaded (use24bit)"
 	elif [ "${Sett[Color]}" = "use8" ]; then
 		RED_BOLD=$'\e[1;31m'
 		RED_DIM=$'\e[2;31m'
@@ -67,7 +66,6 @@ if $color; then
 		WHITE=$'\e[37m'
 
     RESET=$'\033[0m'
-		log "INFO" "colorHandler.sh" "Colors loaded (use8)"
 	elif [ "${Sett[Color]}" = "NoColor" ]; then
 		RED_BOLD=$'\033[1m'
 		RED_DIM=$'\033[2m'
@@ -100,12 +98,10 @@ if $color; then
 		WHITE=$'\O33[0m'
 
     RESET=$'\033[0m'
-		log "INFO" "colorHandler.sh" "Colors loaded (NoColor)"
 	fi
-else
-	log "INFO" "colorHandler.sh" "Colors loaded (disabled)"
 fi
 
+log "INFO" "colorHandler.sh" "Colors loaded (${Sett[Color]})"
 RL_START=$'\001'
 RL_END=$'\002'
 log "DEBUG" "colorHandler.sh" "Finished loading colors"

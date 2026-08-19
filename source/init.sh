@@ -98,7 +98,7 @@ portable=false
 IFSBak=$' \t\n'
 cip=true
 export SHlname="SHlauncherBE"
-export SHlvers="0.3.4"
+export SHlvers="0.3.5"
 # shellcheck disable=SC2329
 function trimCr() { 
 	printf '%s' "${1%$'\r'}"
@@ -108,7 +108,7 @@ function cdfail() { #si cd plante, je sais même pas si l'init pouras accéder a
 	printf "${RED_BOLD}[FATAL] ${RED}SHlauncher has crashed! :\n"
 	printf " The launcher failed to start due to a working directory switch error.\n" 
 	printf " - It could be due to insufficient authorizations, the launcher being missinstalled or issues with the disk.${RESET}\n"
-	exit 1
+	exit 2
 }
 
 function argHandler() {
@@ -158,7 +158,7 @@ function argHandler() {
 		;;
 		*)
 			echo "Unknown argument : $1"
-			exit 1
+			exit 2
 	esac
 }
 argHandler "$@"
@@ -267,6 +267,11 @@ declare -A Sett
 function writeSettingsValue() {
 	local settingId=$1
 	local value=$2
+  if [[ -z "$settingId" ]]; then
+    log "ERROR" "init.sh:writeSettingsValue" "BUG : Some argument are missing, expected argument settingId : \"$settingId\", value (optionnal): \"$value\""
+    printf "${YELLOW_BOLD}[BUG]${YELLOW} Function writeSettingsValue requires 2 arguments but some are missing! Check the log file for more info\n" >&2
+    return 2
+  fi
 	tmp=$(mktemp)
 	Sett["$settingId"]=$value
 	jq ".settings.$settingId = \"$value\"" "$SHdir/settings/data/user.json" > "$tmp" && mv "$tmp" "$SHdir/settings/data/user.json"
@@ -349,7 +354,7 @@ echo "Finished resolving dependencies"
 
 # shellcheck disable=SC2329
 function mavenParser() {
-	local is=$1 # is pour "input string"
+	local is=$1 # is for "input string"
 	log "DEBUG" "init.sh:mavenParser" "mavenParser called with $is"
 	if [ "$is" == "" ]; then
 		printf "${YELLOW_BOLD}[BUG] function mavenParser require 1 entry argument but none were ever passed! Check the log file for more info${RESET}\n"

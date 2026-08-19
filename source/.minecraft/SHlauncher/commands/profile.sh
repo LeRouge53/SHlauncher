@@ -1,5 +1,5 @@
 # shellcheck disable=SC2154
-cd "$SHdir/profiles" || exit 1
+cd "$SHdir/profiles" || return 255
 function UUIDcalc() {
 	hash=$(echo -n "OfflinePlayer:${1}" | md5sum | cut -d' ' -f1) #majik
 	uuid="${hash:0:8}-${hash:8:4}-${hash:12:4}-${hash:16:4}-${hash:20:12}"

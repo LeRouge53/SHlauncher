@@ -83,7 +83,7 @@ function fetch() {
 			if $requiresRestart; then
 				printf "${CYAN}Require restart:${RED}Yes${RESET}\n"
 			else
-				printf "${CYAN}Require restart:${RED}No${RESET}\n"
+				printf "${CYAN}Require restart:${GREEN}No${RESET}\n"
 			fi
 			echo ""
 			printf "${CYAN}Description:${RESET}\n"
@@ -104,7 +104,7 @@ function fetch() {
 			if $requiresRestart; then
 				printf "${CYAN}Require restart:${RED}Yes${RESET}\n"
 			else
-				printf "${CYAN}Require restart:${RED}No${RESET}\n"
+				printf "${CYAN}Require restart:${GREEN}No${RESET}\n"
 			fi
 			echo ""
 			printf "${CYAN}Description:${RESET}\n"
@@ -124,7 +124,7 @@ function fetch() {
 			if $requiresRestart; then
 				printf "${CYAN}Require restart:${RED}Yes${RESET}\n"
 			else
-				printf "${CYAN}Require restart:${RED}No${RESET}\n"
+				printf "${CYAN}Require restart:${GREEN}No${RESET}\n"
 			fi
 			printf "${CYAN}Available options:${RESET}\n"
 			while read -r possibleSetting; do
@@ -154,7 +154,7 @@ function fetch() {
 			if $requiresRestart; then
 				printf "${CYAN}Require restart:${RED}Yes${RESET}\n"
 			else
-				printf "${CYAN}Require restart:${RED}No${RESET}\n"
+				printf "${CYAN}Require restart:${GREEN}No${RESET}\n"
 			fi
 			if [ "$value" != "" ]; then
 				if ! [[ -f "$value" ]]; then
@@ -191,7 +191,7 @@ function fetch() {
 			if $requiresRestart; then
 				printf "${CYAN}Require restart:${RED}Yes${RESET}\n"
 			else
-				printf "${CYAN}Require restart:${RED}No${RESET}\n"
+				printf "${CYAN}Require restart:${GREEN}No${RESET}\n"
 			fi
 			if [ "$value" != "" ]; then
 				if ! [[ -d "$value" ]]; then
@@ -201,7 +201,7 @@ function fetch() {
 						printf "${YELLOW}The directory does NOT exist${RESET}\n"
 					fi
 				else
-					printf "${GREEN}The directory exist and is valid${RESET}\n"
+					printf "${GREEN}The directory exist${RESET}\n"
 				fi
 			else
 				printf "${YELLOW}The directory is unspecified${RESET}\n"
@@ -239,7 +239,7 @@ function edit() {
 			newValue=${newValue//"yes"/"true"}
 			newValue=${newValue//"no"/"false"}
 			if [ "$newValue" != "true" ] && [ "$newValue" != "false" ]; then
-				printf "Failed to apply the changes: this setting require a boolean (true or false, yes or no)${RESET}\n"
+				printf "Failed to apply the changes: this setting require a boolean value (true or false, yes or no)${RESET}\n"
 				log "ERROR" "settings.sh:edit" "Check failed, invalid value"
 				return 2
 			fi
