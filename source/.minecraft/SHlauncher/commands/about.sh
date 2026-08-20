@@ -113,7 +113,7 @@ version of the game. To create one :
 		${YELLOW} Please note that your username might be yellow and not cyan. It is used to easily check if you
 		${YELLOW} have selected a cracked profile or a premium one
 
-${WHITE_DIM}temporary note : profile auth (premium login) is not yet supported. So bruh${WHITE_DIM}
+${WHITE_DIM}temporary note : profile auth (premium login) is not yet supported. So bruh${RESET}
 
 	${GREEN_UNDER}- Downloading java${RESET}
 After preparing the game, the only thing left to do is to download java. To do that : 

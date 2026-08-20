@@ -1,15 +1,14 @@
 #!/bin/bash
-#shellcheck source=./.minecraft/SHlauncher/dependencyInst.sh
-#shellcheck source=./.minecraft/SHlauncher/core.sh
-#shellcheck source=./.minecraft/SHlauncher/colorHandler.sh
 
 # demandez pas pourquoi tout les noms de vars sont bizarre
 
 dir=$(dirname -- "$(readlink "$0")") # POSIX compliant dir discovery, remplacé par quelque chose de mieux ensuite
 
 if grep -q posix <<< "$SHELLOPTS"; then
+	# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
 	source "$dir/.minecraft/SHlauncher/crashHandler.sh" POSIX
 elif wslinfo --version &>/dev/null; then
+	# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
 	source "$dir/.minecraft/SHlauncher/crashHandler.sh" WSL
 fi
 
@@ -88,7 +87,7 @@ MCdir="$dir/.minecraft"
 SHdir="$MCdir/SHlauncher"
 SHlogFile="$SHdir/SHlog.log"
 export dir
-
+# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
 trap 'echo ""; source "$SHdir/crashHandler.sh" SIGINT' INT
 
 debug=false
@@ -102,13 +101,6 @@ export SHlvers="0.3.5"
 # shellcheck disable=SC2329
 function trimCr() { 
 	printf '%s' "${1%$'\r'}"
-}
-
-function cdfail() { #si cd plante, je sais même pas si l'init pouras accéder au crashHandler, donc je met tout dans une fonction
-	printf "${RED_BOLD}[FATAL] ${RED}SHlauncher has crashed! :\n"
-	printf " The launcher failed to start due to a working directory switch error.\n" 
-	printf " - It could be due to insufficient authorizations, the launcher being missinstalled or issues with the disk.${RESET}\n"
-	exit 2
 }
 
 function argHandler() {
@@ -191,6 +183,7 @@ if ! unzip --help &>/dev/null; then
 	log "FATAL" "init.sh" "Unzip was not found in the PATH, crash imminent"
 	MissingDependencies+=("unzip")
 fi
+# shellcheck source=.minecraft/SHlauncher/dependencyInst.sh
 source "$SHdir/dependencyInst.sh"
 
 declare -A parameter
@@ -268,7 +261,7 @@ function writeSettingsValue() {
 	local settingId=$1
 	local value=$2
   if [[ -z "$settingId" ]]; then
-    log "ERROR" "init.sh:writeSettingsValue" "BUG : Some argument are missing, expected argument settingId : \"$settingId\", value (optionnal): \"$value\""
+    log "ERROR" "init.sh:writeSettingsValue" "BUG : Some argument are missing, expected argument settingId : \"$settingId\", value (optional): \"$value\""
     printf "${YELLOW_BOLD}[BUG]${YELLOW} Function writeSettingsValue requires 2 arguments but some are missing! Check the log file for more info\n" >&2
     return 2
   fi
@@ -277,7 +270,7 @@ function writeSettingsValue() {
 	jq ".settings.$settingId = \"$value\"" "$SHdir/settings/data/user.json" > "$tmp" && mv "$tmp" "$SHdir/settings/data/user.json"
 	log "DEBUG" "init.sh:writeSettingsValue" "wrote setting value \"$settingId\" with \"$value\""
 }
-
+# shellcheck source=.minecraft/SHlauncher/commands/settings.sh
 source "$SHdir/commands/settings.sh" init
 
 force_color=false
@@ -291,7 +284,7 @@ elif [ -n "$NO_COLOR" ]; then
 else 
 	color=true
 fi
-
+# shellcheck source=.minecraft/SHlauncher/colorHandler.sh
 source "$SHdir/colorHandler.sh"
 
 case "$OSTYPE" in
@@ -304,7 +297,8 @@ esac
 log "INFO" "init.sh" "Resolved operating system to $osName"
 
 mkdir -p "$SHdir"
-cd "$SHdir" || cdfail
+# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
+cd "$SHdir" || source "$SHdir/crashHandler.sh" "CD_FAIL"
 
 if ! $cip; then
 	printf "${RED_BOLD}[MAJOR WARNING]${RESET}${RED} Command injection protection is disabled, DO NOT execute commands that could\n"
@@ -334,7 +328,7 @@ elif [ "$osName" != "unknown" ]; then
 	ping -c 1 -W 3 google.com &>/dev/null
 	pingExitCode=$?
 else
-  log "WARN" "init.sh" "Uknown operating system, ping feature may not work"
+  log "WARN" "init.sh" "Unknown operating system, ping feature may not work"
   ping -c 1 -W 3 google.com &>/dev/null
   pingExitCode=$?
 fi
@@ -437,5 +431,6 @@ HISTFILE="$SHdir/.SHLhistory"
 history -c
 history -r
 log "INFO" "init.sh" "SHlauncher startup process completed, switching to core.sh"
-source ./core.sh
+# shellcheck source=.minecraft/SHlauncher/core.sh
+source "$SHdir/core.sh"
 exit

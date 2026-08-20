@@ -1,5 +1,3 @@
-# shellcheck source=./commands/profile.sh
-# shellcheck disable=SC2059
 # shellcheck disable=SC2154
 
 log "DEBUG" "core.sh" "Core.sh successfully called. Starting..."
@@ -69,30 +67,39 @@ while true; do
 			exit 0
 		;;
 		"profile" | "profiles")
+			# shellcheck source=commands/profile.sh
 			source ./profile.sh "$@"
 		;;
 		"version" | "versions")
+			# shellcheck source=commands/version.sh
 			source ./version.sh "$@"
 		;;
 		"instance" | "instances")
+			# shellcheck source=commands/instance.sh
 			source ./instance.sh "$@"
 		;;
 		"java")
+			# shellcheck source=commands/java.sh
 			source ./java.sh "$@"
 		;;
 		"launch")
+			# shellcheck source=commands/launch.sh
 			source ./launch.sh "$@"
 		;;
 		"opendir")
+			# shellcheck source=commands/opendir.sh
 			source ./opendir.sh "$@"
 		;;
 		"settings" | "sett")
+			# shellcheck source=commands/settings.sh
 			source ./settings.sh "$@"
 		;;
 		"about")
+			# shellcheck source=commands/about.sh
 			source ./about.sh "$@"
 		;;
 		"help")
+			# shellcheck source=commands/about.sh
 			source ./about.sh "get-started"
 		;;
 		"reset")

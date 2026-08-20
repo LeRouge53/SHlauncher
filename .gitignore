@@ -359,7 +359,6 @@ MigrationBackup/
 # End of https://www.toptal.com/developers/gitignore/api/vs
 
 .vscode/
-.shellcheckrc
 *.txt
 *.code-workspace
 

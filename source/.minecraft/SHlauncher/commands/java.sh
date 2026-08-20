@@ -144,7 +144,8 @@ function argHandler() {
 }
 # shellcheck disable=SC2154
 mkdir -p "$SHdir/java"
-cd "$SHdir/java" || cdfail
+# shellcheck source=../crashHandler.sh
+cd "$SHdir/java" || source "$SHdir/crashHandler.sh" "CD_FAIL"
 
 parameter[reinstall]=false
 parameter[jdk]=false

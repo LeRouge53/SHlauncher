@@ -325,7 +325,8 @@ function install() {
 				installMainClass=$(trimCr "$installMainClass")
 				printf "${BLUE_BOLD}executing processor %s...${RESET}\n" "$jar"
 
-				cd "./libraries" || cdfail
+				# shellcheck source=../crashHandler.sh
+				cd "./libraries" || source "$SHdir/crashHandler.sh" "CD_FAIL"
 				log "INFO" "version.sh:install" "Starting processor \"$jar\""
 				if ! "${localJava}" "-Xms64M" "-Xmx2G" "-cp" "${finalInstallCp}" "${installMainClass}" "${procArgs[@]}"; then
 					printf "${RED_BOLD}Processor %s failed to execute\n" "$jar"
@@ -333,7 +334,8 @@ function install() {
 					printf "Error is non recoverable. please retry${RESET}\n"
 					return 1
 				fi
-				cd ".." || cdfail
+				# shellcheck source=../crashHandler.sh
+				cd .. || source "$SHdir/crashHandler.sh" "CD_FAIL"
 			done < <(jq -c --arg side "$side" '.processors[] | . as $proc | ( if $proc.sides == null or ($side | IN($proc.sides[])) then $proc else empty end )' "$installDir/install_profile.json")
 			rm "$versDir/neoforge-$fullModLoaderVers/"*-installer.jar*
 			rm -r -- "$installDir"
