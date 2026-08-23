@@ -4,12 +4,11 @@ function list() {
 	mapfile -t settingName < <(jq -r '.settings | to_entries[] | .key' "data/user.json")
 	for (( i=0; i<${#settingName[@]}; i++ )); do
 		log "DEBUG" "settings.sh:list" "Checking setting \"${settingName[i]}\""
-		settingName[i]=$(trimCr "${settingName[i]}")
 
-		settingValue=$(trimCr "$(jq -r --argjson i "$i" '.settings | to_entries[$i] | .value' "data/user.json")")
-		settingDisplayName=$(trimCr "$(jq -r --arg name "${settingName[i]}" '.settings | to_entries[] | select(.key == $name) | .value.displayName' "data/system.json")")
-		settingType=$(trimCr "$(jq -r --arg name "${settingName[i]}" '.settings | to_entries[] | select(.key == $name) | .value.type' "data/system.json")")
-		isHidden=$(trimCr "$(jq -r --arg name "${settingName[i]}" '.settings | to_entries[] | select(.key == $name) | .value.hidden' "data/system.json")")
+		settingValue=$(jq -r --argjson i "$i" '.settings | to_entries[$i] | .value' "data/user.json")
+		settingDisplayName=$(jq -r --arg name "${settingName[i]}" '.settings | to_entries[] | select(.key == $name) | .value.displayName' "data/system.json")
+		settingType=$(jq -r --arg name "${settingName[i]}" '.settings | to_entries[] | select(.key == $name) | .value.type' "data/system.json")
+		isHidden=$(jq -r --arg name "${settingName[i]}" '.settings | to_entries[] | select(.key == $name) | .value.hidden' "data/system.json")
 		if [ "$isHidden" != "true" ] || ${parameter[all]}; then
 			printf "|-------------------------------------------------------------------------------------------------------------------------------------------------|\n"
 			printf "| %-50s | %-30s | %-42s | %-12s |\n" "$settingDisplayName" "${settingName[i]}" "$settingValue" "$settingType"
@@ -31,11 +30,11 @@ function fetch() {
 	fi
 
 	log "INFO" "settings.sh:fetch" "Fetching $settingId"
-	displayName=$(trimCr "$(jq -r ".settings.$settingId.displayName" "data/system.json")")
-	type=$(trimCr "$(jq -r ".settings.$settingId.type" "data/system.json")")
-	description=$(trimCr "$(jq -r ".settings.$settingId.description" "data/system.json")")
-	default=$(trimCr "$(jq -r ".settings.$settingId.default" "data/system.json")")
-	value=$(trimCr "$(jq -r ".settings.$settingId" "data/user.json")")
+	displayName=$(jq -r ".settings.$settingId.displayName" "data/system.json")
+	type=$(jq -r ".settings.$settingId.type" "data/system.json")
+	description=$(jq -r ".settings.$settingId.description" "data/system.json")
+	default=$(jq -r ".settings.$settingId.default" "data/system.json")
+	value=$(jq -r ".settings.$settingId" "data/user.json")
 	getOptionalValues
 
 	log "DEBUG" "settings.sh:fetch" "setting type was resolved as $type"
@@ -62,9 +61,9 @@ function fetch() {
 			printf "\n\n"
 		;;
 		"number")
-			min=$(trimCr "$(jq -r ".settings.$settingId.min"  "data/system.json")")
-			max=$(trimCr "$(jq -r ".settings.$settingId.max"  "data/system.json")")
-			step=$(trimCr "$(jq -r ".settings.$settingId.step"  "data/system.json")")
+			min=$(jq -r ".settings.$settingId.min"  "data/system.json")
+			max=$(jq -r ".settings.$settingId.max"  "data/system.json")
+			step=$(jq -r ".settings.$settingId.step"  "data/system.json")
 
 			printf "${CYAN}Display name:${RESET} %s\n" "$displayName"
 			printf "${CYAN}Setting ID:${RESET} %s\n" "$settingId"
@@ -128,9 +127,8 @@ function fetch() {
 			fi
 			printf "${CYAN}Available options:${RESET}\n"
 			while read -r possibleSetting; do
-				possibleSetting=$(trimCr "$possibleSetting")
 				printf "   ${BLUE}%s${RESET} > " "$possibleSetting"
-				printf "%s\n" "$(trimCr "$(jq -r --arg filter "$possibleSetting" ".settings.$settingId.enum[] | select(.displayName ==  "'$filter'") | .id" "data/system.json")")"
+				printf "%s\n" "$(jq -r --arg filter "$possibleSetting" ".settings.$settingId.enum[] | select(.displayName ==  "'$filter'") | .id" "data/system.json")"
 			done < <(jq -r ".settings.$settingId.enum[].displayName" "data/system.json")
 			printf "${CYAN}Value:${RESET} %s\n" "$value"
 			echo ""
@@ -139,7 +137,7 @@ function fetch() {
 			printf "\n\n"
 		;;
 		"file")
-			mustExist=$(trimCr "$(jq -r ".settings.$settingId.mustExist"  "data/system.json")")
+			mustExist=$(jq -r ".settings.$settingId.mustExist"  "data/system.json")
 
 			printf "${CYAN}Display name:${RESET} %s\n" "$displayName"
 			printf "${CYAN}Setting ID:${RESET} %s\n" "$settingId"
@@ -176,7 +174,7 @@ function fetch() {
 			printf "\n\n"
 		;;
 		"folder")
-			mustExist=$(trimCr "$(jq -r ".settings.$settingId.mustExist"  "data/system.json")")
+			mustExist=$(jq -r ".settings.$settingId.mustExist"  "data/system.json")
 
 			printf "${CYAN}Display name:${RESET} %s\n" "$displayName"
 			printf "${CYAN}Setting ID:${RESET} %s\n" "$settingId"
@@ -232,7 +230,7 @@ function edit() {
 		return 2
 	fi
 	log "INFO" "settings.sh:edit" "Modifying $settingId to $newValue"
-	type=$(trimCr "$(jq -r ".settings.$settingId.type" "data/system.json")")
+	type=$(jq -r ".settings.$settingId.type" "data/system.json")
 	log "DEBUG" "settings.sh:edit" "Setting type was resolved as $type, checking requirements..."
 	case $type in
 		"boolean")
@@ -245,9 +243,9 @@ function edit() {
 			fi
 		;;
 		"number")
-			min=$(trimCr "$(jq -r ".settings.$settingId.min"  "data/system.json")")
-			max=$(trimCr "$(jq -r ".settings.$settingId.max"  "data/system.json")")
-			step=$(trimCr "$(jq -r ".settings.$settingId.step"  "data/system.json")")
+			min=$(jq -r ".settings.$settingId.min"  "data/system.json")
+			max=$(jq -r ".settings.$settingId.max"  "data/system.json")
+			step=$(jq -r ".settings.$settingId.step"  "data/system.json")
 			if [[ "${newValue}" =~ [^0-9\.] ]]; then
 				printf "${RED_BOLD}Failed to apply the changes: this setting require a number${RESET}\n"
 				log "ERROR" "settings.sh:edit" "Check failed, invalid value"
@@ -268,7 +266,6 @@ function edit() {
 		"enum")
 			isDone=false
 			while read -r possibleSetting; do
-				possibleSetting=$(trimCr "$possibleSetting")
 				if [ "$newValue" = "$possibleSetting" ]; then
 					isDone=true
 					break
@@ -281,8 +278,8 @@ function edit() {
 			fi
 		;;
 		"file")
-			mustExist=$(trimCr "$(jq -r ".settings.$settingId.mustExist"  "data/system.json")")
-			createIfMissing=$(trimCr "$(jq -r ".settings.$settingId.createIfMissing"  "data/system.json")")
+			mustExist=$(jq -r ".settings.$settingId.mustExist"  "data/system.json")
+			createIfMissing=$(jq -r ".settings.$settingId.createIfMissing"  "data/system.json")
 			if $createIfMissing; then
 				command -p install -D "$newValue"
 				touch "$newValue"
@@ -295,8 +292,8 @@ function edit() {
 			fi
 		;;
 		"folder")
-			mustExist=$(trimCr "$(jq -r ".settings.$settingId.mustExist"  "data/system.json")")
-			createIfMissing=$(trimCr "$(jq -r ".settings.$settingId.createIfMissing"  "data/system.json")")
+			mustExist=$(jq -r ".settings.$settingId.mustExist"  "data/system.json")
+			createIfMissing=$(jq -r ".settings.$settingId.createIfMissing"  "data/system.json")
 			if $createIfMissing; then
 				mkdir -p "$newValue"
 			elif $mustExist; then
@@ -331,7 +328,7 @@ function edit() {
 }
 
 function getOptionalValues() {
-	isProtected=$(trimCr "$(jq -r ".settings.$settingId.isProtected" "data/system.json")")
+	isProtected=$(jq -r ".settings.$settingId.isProtected" "data/system.json")
 	if [ "$isProtected" == "null" ] || [ "$isProtected" == "" ]; then
 		isProtected=false
 	fi

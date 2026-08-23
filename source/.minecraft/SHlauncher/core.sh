@@ -2,14 +2,14 @@
 
 log "DEBUG" "core.sh" "Core.sh successfully called. Starting..."
 
-cd "$SHdir/commands" || "$SHdir/crashHandler.sh" CDFAIL
+cd "$SHdir/commands" || "$SHdir/crashHandler.sh" CD_FAIL
 
-collumnNumber="$(tput cols)"
+columnNumber="$(tput cols)"
 [ "$?" -eq 127 ] && {
   log "ERROR" "core.sh" "Failed to check terminal size, \"tput\" command not found"
 }
-if [ -n "$collumnNumber" ] && [ "$collumnNumber" -lt 150 ]; then
-	log "WARN" "core.sh" "Bad terminal size detected, $collumnNumber collumns may be too small"
+if [ -n "$columnNumber" ] && [ "$columnNumber" -lt 150 ]; then
+	log "WARN" "core.sh" "Bad terminal size detected, $columnNumber columns may be too small"
 	if ${Sett[ShowTerminalSizeWarning]}; then
 		printf "${YELLOW}It is not recommended to use SHlauncher with a terminal containing less than 150 columns${RESET}\n"
 		printf "${YELLOW}Please use a bigger terminal if possible${RESET}\n"
@@ -46,7 +46,7 @@ while true; do
 	IFS=$IFSBak
 	log "INFO" "core.sh" "Displaying shell"
 	read -erp "SHlauncher ${DispProf}:${DispInst}> " commandLine
-	commandLine=$(trimCr "$commandLine")
+	commandLine="${commandLine%$'\r'}"
 	log "DEBUG" "core.sh" "Command line is \"$commandLine\""
 	if [[ "$commandLine" =~ [\;\&\|\>\<\`\$\(\)\*] ]] && $cip; then
 		log "ERROR" "core.sh" "Caught special characters by CIP command injection protection"

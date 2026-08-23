@@ -13,7 +13,6 @@ substituteArg() {
 	fi
 
 	log "DEBUG" "launch.sh:substituteArg" "Resolving \"$oldArg\""
-	arg=$(trimCr "$arg")
 
 	arg="${arg//'${natives_directory}'/$nativesDir}"
 	arg="${arg//'${library_directory}'/"libraries"}"
@@ -101,8 +100,6 @@ function launch() {
 		java="$SHdir/java/$runtime/bin/java"
 	fi
 
-	MinRam=$(trimCr "$MinRam")
-	MaxRam=$(trimCr "$MaxRam")
 	jvmArgs+=("${additionalJvmArgs[@]}")
 	if [ "$modloader" != "vanilla" ]; then jvmArgs+=("${moddedJvmArgs[@]}"); fi
 	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam" "-Xdiag")

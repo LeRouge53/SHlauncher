@@ -12,7 +12,7 @@ if [ "${MissingDependencies[*]}" != "" ]; then
 
 	read -rp "Would you like to install the dependencies automatically ?(y/n)>" yn
 	if [ "$yn" = "y" ]; then
-		if "$ONLINE_MODE"; then
+		if "$onlineMode"; then
 			if [ "$osName" = "windows" ]; then
 				[[ "${MissingDependencies[*]}" =~ jq ]] && {
 					if ! exceptionCatch "dependencyInst.sh" pacman -S msys/jq; then

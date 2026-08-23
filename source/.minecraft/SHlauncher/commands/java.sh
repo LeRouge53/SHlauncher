@@ -14,7 +14,7 @@ function list() {
 function install() {
 	local version=$2
 	local versionDir="$SHdir/java/$version"
-	if ! $ONLINE_MODE; then
+	if ! $onlineMode; then
 		printf "${RED}Can't download, you are in offline mode${RESET}\n"
 		return 1
 	fi
