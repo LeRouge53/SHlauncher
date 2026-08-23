@@ -1,7 +1,5 @@
 #!/bin/bash
-
-# demandez pas pourquoi tout les noms de vars sont bizarre
-
+set -o pipefail
 dir=$(dirname -- "$(readlink "$0")") # POSIX compliant dir discovery, remplacé par quelque chose de mieux ensuite
 
 if grep -q posix <<< "$SHELLOPTS"; then
@@ -19,7 +17,7 @@ function log() {
 	local msg="$*"
 	case "" in
 		"$level" | "$source")
-			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function log require 2 arguments but some are missing! Check the log file for more info \n"
+			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function log require 2 arguments but some are missing! Check the log file for more info${RESET}\n"
 			log "ERROR" "init.sh:log" "BUG : Some argument are missing. Expected argument: level \"$level\", source \"$source\""
 			return 2
 		;;
@@ -97,11 +95,7 @@ portable=false
 IFSBak=$' \t\n'
 cip=true
 export SHlname="SHlauncherBE"
-export SHlvers="0.3.5"
-# shellcheck disable=SC2329
-function trimCr() { 
-	printf '%s' "${1%$'\r'}"
-}
+export SHlvers="0.3.6"
 
 function argHandler() {
 	case $1 in
@@ -144,6 +138,10 @@ function argHandler() {
 			export SHlvers="$2"
 			shift 2
 			argHandler "$@"
+		;;
+		"--clear-manifest")
+			command -p rm -r "$SHdir/manifests/" 2>/dev/null
+			log "INFO" "init.sh:argHandler" "Manifest cleared with errcode $?"
 		;;
 		"")
 			true
@@ -305,7 +303,7 @@ if ! $cip; then
 	printf "${RED_BOLD}[MAJOR WARNING]${RESET}${RED} lead to arbitrary code execution${RESET}\n"
 fi
 
-ONLINE_MODE=true
+onlineMode=true
 printf "${GREEN_BOLD}SHlauncher started${RESET}\n"
 echo "Started resolving dependency"
 
@@ -320,6 +318,7 @@ mkdir -p ./profiles
 mkdir -p ./commands
 mkdir -p ./instances
 mkdir -p ./manifests
+mkdir -p ./manifests/fabric
 
 if [ "$osName" = "windows" ]; then
 	/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null
@@ -337,16 +336,15 @@ if [ "$pingExitCode" != 0 ] && [ "$pingExitCode"  != 127 ]; then
 	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
 	printf "${RED_BOLD}[ERROR]${RED} This launcher requires an Internet connection for almost everything, an offline mode exist but is very limited.\n"
 	printf "${RED_BOLD}[ERROR]${RED} Restart or reset the launcher to switch back to Online mode${RESET}\n"
-	ONLINE_MODE=false
+	onlineMode=false
 elif [ "$pingExitCode" = 127 ]; then
   log "WARN" "init.sh" "Can't ping, \"ping\" command not found"
 fi
 
-export ONLINE_MODE
+export onlineMode
 
 echo "Finished resolving dependencies"
 
-# shellcheck disable=SC2329
 function mavenParser() {
 	local is=$1 # is for "input string"
 	log "DEBUG" "init.sh:mavenParser" "mavenParser called with $is"
@@ -355,7 +353,6 @@ function mavenParser() {
 		log "ERROR" "init.sh:mavenParser" "BUG : Some argument are missing. Expected argument: is \"$is\""
 		return 2
 	fi
-	is=$(trimCr "$is")
 	is="${is//'['/}"
 	is="${is//']'/}"
 
@@ -391,12 +388,12 @@ function mavenParser() {
 
 echo "Starting manifest check"
 log "DEBUG" "init.sh" "Downloading manifests..."
-if $ONLINE_MODE; then
-	if curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json | jq '.' > manifests/temp_manifest.json; then
+if $onlineMode; then
+	if curl -s "https://launchermeta.mojang.com/mc/game/version_manifest.json" | jq '.' > manifests/temp_manifest.json; then
 		cat manifests/temp_manifest.json > manifests/vanilla_version_manifest.json
 	else
 		log "WARN" "init.sh" "Vanilla manifest download failed, invalid JSON file"
-		printf "${RED}[ERROR]${RED} The newly downloaded vanilla manifest seem invalid, the old one will be used instead${RESET}\n"
+		printf "${RED}The newly downloaded vanilla manifest seem invalid, the old one will be used instead${RESET}\n"
 	fi
 
 	if curl -so manifests/temp_manifest.xml https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml; then
@@ -405,25 +402,40 @@ if $ONLINE_MODE; then
 		IFS=$'\n' NeoVersions=($(sort <<<"${NeoVersions[*]}"))
 		printf '%s\n' "${NeoVersions[@]}" | jq -Rs 'split("\n")[:-1]' \
 			> manifests/neoforge_version_manifest.json
-		command -p rm manifests/temp_manifest.xml
-		command -p rm manifests/temp_manifest.json
 	else
 		log "WARN" "init.sh" "Neoforge manifest download failed, invalid JSON file"
-		printf "${RED}[ERROR]${RED} The newly downloaded Neoforge manifest seem invalid, the old one will be used instead${RESET}\n"
-		command -p rm manifests/temp_manifest.json 2>/dev/null
+		printf "${RED}The newly downloaded Neoforge manifest seem invalid, the old one will be used instead${RESET}\n"
+		
+	fi
+
+	if curl -s "https://meta.fabricmc.net/v2/versions/game" | jq '.' > manifests/temp_manifest.json; then
+		cat manifests/temp_manifest.json > manifests/fabric/fabric_game_manifest.json
+	else
+		log "WARN" "init.sh" "fabric game manifest download failed, invalid JSON file"
+		printf "${RED}[ERROR]${RESET}${RED} The newly downloaded Fabric game manifest seem invalid, the old one will be used instead${RESET}\n"
 	fi
 else
 	printf "${YELLOW_BOLD}[WARN]${YELLOW} Unable to reload some manifest file, old one will be used instead${RESET}\n"
 fi
 if [ ! -f manifests/vanilla_version_manifest.json ] || [ ! -s manifests/vanilla_version_manifest.json ]; then
 	log "ERROR" "init.sh" "Vanilla version manifest is corrupted or empty"
-	printf "${RED_BOLD}[ERROR]${RED} Invalid version manifest : file is missing or empty. You will not be able to download or repair any Vanilla game instances. Restart the launcher to reload the manifest${RESET}\n"
+	printf "${RED_BOLD}[ERROR]${RESET}${RED} Invalid version manifest : file is missing or empty. You will not be able to download or repair any Vanilla game instances. Restart the launcher to reload the manifest${RESET}\n"
 fi
 
 if [ ! -f manifests/neoforge_version_manifest.json ] || [ ! -s manifests/neoforge_version_manifest.json ]; then
 	log "ERROR" "init.sh" "Neoforge version manifest is corrupted or empty"
-	printf "${RED_BOLD}[ERROR]${RED} Invalid version manifest : file is missing or empty. You will not be able to list any Neoforge versions. Restart the launcher to reload the manifest${RESET}\n"
+	printf "${RED_BOLD}[ERROR]${RESET}${RED} Invalid version manifest : file is missing or empty. You will not be able to list any Neoforge versions. Restart the launcher to reload the manifest${RESET}\n"
 fi
+if [ ! -f manifests/fabric/fabric_game_manifest.json ] || [ ! -s manifests/fabric/fabric_game_manifest.json ]; then
+
+	log "ERROR" "init.sh" "One or multiple fabric manifests are corrupted or empty"
+	printf "${RED_BOLD}[ERROR]${RESET}${RED} Invalid version manifest : file is missing or empty. You will not be able to list any Fabric versions. Restart the launcher to reload the manifest${RESET}\n"
+fi
+$debug || { 
+	command -p rm manifests/temp_manifest.json 2>/dev/null
+	command -p rm manifests/temp_manifest.xml 2>/dev/null
+}
+
 echo "Finished manifest check"
 printf "${GREEN_BOLD}Start successful *\\(^o^)/*${RESET}\n"
 touch ./.SHLhistory

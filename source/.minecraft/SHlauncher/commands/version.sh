@@ -1,6 +1,49 @@
 # shellcheck disable=SC2154
-# shellcheck disable=SC2016
-cd "$MCdir" || return 255
+# shellcheck source=../crashHandler.sh
+cd "$MCdir" || source "$SHdir/crashHandler.sh" CD_FAIL
+
+function fabricManifestDownloader() {
+	local gameVers=$1
+	local loaderVers=$2
+	local noPrint=$3
+	log "DEBUG" "version.sh:fabricManifestDownloader" "starting with $gameVers $loaderVers"
+	if [ -z "$gameVers" ]; then
+		printf "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function fabricManifestDownloader require 2 arguments but some are missing! Check the log file for more info \n"
+		log "ERROR" "version.sh:fabricManifestDownloader" "BUG : Some argument are missing. Expected argument: gameVers \"$gameVers\", loaderVers (optional) \"$loaderVers\""
+		return 2
+	fi
+	if ! $onlineMode; then
+		$noPrint || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n"
+		return 1
+	fi
+	case $noPrint in
+		true | false)
+			true
+		;;
+		*)
+			false
+	esac
+
+	mkdir -p "$SHdir/manifests/fabric/$gameVers"
+	if [ -z "$loaderVers" ]; then
+		if curl -fsL "https://meta.fabricmc.net/v2/versions/loader/$gameVers/" | jq '.' > "$SHdir/manifests/temp_manifest.json"; then
+			cat "$SHdir/manifests/temp_manifest.json" > "$SHdir/manifests/fabric/$gameVers/$gameVers.json"
+		else
+			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch fabric compatibility for game version \"$gameVers\"; version is invalid or unsupported by fabric"
+			$noPrint || printf "${RED}The specified minecraft version ($gameVers) is invalid or not supported by fabric${RESET}\n"
+			return 1
+		fi
+	else
+		if curl -fsL "https://meta.fabricmc.net/v2/versions/loader/$gameVers/$loaderVers/profiles/json" | jq '.' > "$SHdir/manifests/temp_manifest.json"; then
+			cat "$SHdir/manifests/temp_manifest.json" > "$SHdir/manifests/fabric/$gameVers/$gameVers-$loaderVers.json"
+		else
+			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch game version \"$gameVers\" with loader \"$loaderVers\"; version is invalid or unsupported by fabric"
+			$noPrint || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid${RESET}\n"
+			return 1
+		fi
+	fi
+	command -p rm "$SHdir/manifests/temp_manifest.json"
+}
 
 function install() {
 	side="client"
@@ -25,7 +68,6 @@ function install() {
 
 			printf "${BLUE_BOLD}Downloading $path...${RESET}\n"
 			log "DEBUG" "version.sh:install:installLib" "Started downloading $path"
-			sha1="$(trimCr "$sha1")"
 			dest="$outputDir/$path"
 			mkdir -p "$(dirname "$dest")"
 
@@ -72,11 +114,11 @@ function install() {
 					printf "${RED}Error is non-recoverable, exiting${RESET}\n"
 					return 1
 				fi
-				command -p rm -- "$(trimCr "$dest")"
+				command -p rm -- "$dest"
 				IFS=',' read -ra excludes <<< "$extract"
 				for exc in "${excludes[@]}"; do
-					if [ "$(trimCr "$exc")" == "" ]; then continue; fi
-					command -p rm -r -- "natives/$(trimCr "$exc")"
+					if [ "$exc" == "" ]; then continue; fi
+					command -p rm -r -- "natives/$exc"
 				done
 			fi
 
@@ -145,7 +187,7 @@ function install() {
 
 	# shellcheck disable=SC2154
 	versDir="$MCdir/versions"
-	if ! $ONLINE_MODE; then
+	if ! $onlineMode; then
 		printf "${RED}Can't download, you are in offline mode${RESET}\n"
 		return 1
 	fi
@@ -179,7 +221,7 @@ function install() {
 			function NeoArgSubstitute() {
 				local arg
 				local fullString
-				fullString=$(trimCr "$1")
+				fullString=$1
 				if [[ -z $fullString ]]; then
 					printf "${YELLOW_BOLD}[BUG]${YELLOW} function NeoArgSubstitute require 1 entry argument, but none were ever passed! Check the log file for more info${RESET}\n" >&2
 					log "ERROR" "version.sh:install:NeoArgSubstitute" "BUG : Some argument are missing. Expected argument: fullString \"$fullString\""
@@ -292,7 +334,6 @@ function install() {
 					unzip -po "$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar" \
 						"$datVal" > "./libraries/$datVal" # fichier littéral
 				fi
-				datVal=$(trimCr "$datVal")
 				installVars["$datName"]="$datVal"
 			done < <(jq -r --arg side "$side" ' 
 				.data | to_entries[] | 
@@ -302,13 +343,7 @@ function install() {
 			while IFS= read -r proc; do
 				jar=$(mavenParser "$(jq -r .jar <<< "$proc")")
 				mapfile -t installCp < <(jq -r '.classpath[]' <<< "$proc")
-				for i in "${!installCp[@]}"; do
-					installCp[i]=$(trimCr "${installCp[i]}")
-				done
 				mapfile -t procArgs < <(jq -r '.args[]' <<< "$proc")
-				for i in "${!procArgs[@]}"; do
-					procArgs[i]=$(trimCr "${procArgs[i]}")
-				done
 				
 				finalInstallCp=""
 				for (( i=0; i<${#installCp[@]}; i++ )); do
@@ -318,11 +353,9 @@ function install() {
 
 				for (( i=0; i<${#procArgs[@]}; i++ )); do
 					procArgs[i]=$(NeoArgSubstitute "${procArgs[i]}")
-					procArgs[i]=$(trimCr "${procArgs[i]}")
 				done
 
 				installMainClass=$(getMainClass "$MCdir/libraries/$jar")
-				installMainClass=$(trimCr "$installMainClass")
 				printf "${BLUE_BOLD}executing processor %s...${RESET}\n" "$jar"
 
 				# shellcheck source=../crashHandler.sh
@@ -395,9 +428,6 @@ function install() {
 			local tempArgs
 			mapfile -t tempArgs < <(jq -r '.arguments.jvm[]' "$versionJson")
 			for (( i=0; i<${#tempArgs[@]}; i++ )); do
-				tempArgs[i]=$(trimCr "${tempArgs[i]}")
-			done
-			for (( i=0; i<${#tempArgs[@]}; i++ )); do
 				if [ "${tempArgs[i]}" == "-p" ]; then
 					newIndex=$((i+1))
 					break
@@ -409,9 +439,7 @@ function install() {
 			mapfile -td "${cmdSeparator}" delete <<< "${tempArgs[$newIndex]}"
 			delete+=("versions/$inheritedVers/$inheritedVers.jar")
 			for target in "${delete[@]}"; do
-				target=$(trimCr "$target")
 				for (( i=0; i<${#CPInAnArray[@]}; i++ )); do
-					CPInAnArray[i]=$(trimCr "${CPInAnArray[i]}")
 					if [ "${CPInAnArray[i]}" == "$target" ]; then
 						unset 'CPInAnArray[i]'
 					fi
@@ -422,7 +450,6 @@ function install() {
 				[[ -n "$e" ]] && new+=("$e")
 			done
 			IFS="${cmdSeparator}" classpath="${new[*]}"
-			classpath=$(trimCr "$classpath")
 			unset -v new
 			unset -v CPInAnArray
 			unset -v tempArgs
@@ -432,7 +459,6 @@ function install() {
 	if [ "$modloader" == "vanilla" ]; then
 		mkdir -p SHlauncher/log4jconf
 		read -r url sha1 name < <(jq -r '.logging.client.file | . as $log | "\($log.url) \($log.sha1) \($log.id)"' "$versionJson")
-		name=$(trimCr "$name")
 		if [ "$name" != "null" ] && [ "$name" != "" ]; then 
 			if ! [[ -f "SHlauncher/log4jconf/$name" ]]; then
 				echo "Downloading log4j config file..."
@@ -461,7 +487,7 @@ function install() {
 			mkdir -p "$assetDir/indexes"
 			read -r id url < <(jq -r '. | "\(.assetIndex.id) \(.assetIndex.url)"' "$versionJson")
 			#printf '%q\n' -- note pour plus tard
-			curl --fail --retry 5 --retry-delay 2 -s "$(trimCr "$url")"  | jq '.' > "$assetDir/indexes/$id.json"
+			curl --fail --retry 5 --retry-delay 2 -s "$url"  | jq '.' > "$assetDir/indexes/$id.json"
 
 			function parallelDownload() {
 				shopt -s nullglob
@@ -562,7 +588,6 @@ function install() {
 				local standardCrash=$4
 
 				while read -r sha1; do
-					sha1=$(trimCr "$sha1")
 					lilsha=${sha1:0:2}
 					path="$lilsha/$sha1"
 					if [[ -f "$assetDir/objects/$path" ]]; then
@@ -698,7 +723,6 @@ function install() {
 			delete=("-Xms2G" "-Xmx4G")
 			for target in "${delete[@]}"; do
 				for i in "${!jvmArgs[@]}"; do
-					jvmArgs[i]=$(trimCr "${jvmArgs[i]}")
 					if [ "${jvmArgs[i]}" == "$target" ]; then
 						unset 'jvmArgs[i]'
 					fi
@@ -791,19 +815,17 @@ function install() {
 	esac
 }
 
-list() {
+function list() {
 	case $1 in
 		"b4" | "b4release")
 			if [ "$modloader" != "vanilla" ]; then
-				printf "${YELLOW}Using a modded instance for alpha and beta version of the game is unsupported"
+				printf "${YELLOW}Using a modded instance for alpha and beta version of the game is not supported and will probably never be"
 				return 2
 			fi
 			printf -- "|=============================|\n"
 			printf "| %-12s | %-12s |\n" "VERSION" "TYPE"
 			printf -- "|-----------------------------|\n"
 			while read -r id type; do
-				id=$(trimCr "$type")
-				type=$(trimCr "$type")
 				log "DEBUG" "version.sh:list" "Checking version \"$id\""
 				if [ "$toGrep" == "" ]; then
 					printf "| %-12s | %-12s |\n" "$id" "$type"
@@ -855,34 +877,53 @@ list() {
 			unset -v toGrep
 		;;
 		"snap" | "snapshot")
-			printf -- "|=============================|\n"
-			printf "| %-12s | %-12s |\n" "VERSION" "TYPE"
-			printf -- "|-----------------------------|\n"
-			while read -r id type; do
-				log "DEBUG" "version.sh:list" "Checking version \"$id\""
-				type=$(trimCr "$type")
-				if [ "$toGrep" == "" ]; then
-					printf "| %-12s | %-12s |\n" "$id" "$type"
-				else
-					printf "| %-12s | %-12s |\n" "$id" "$type" | grep "$toGrep"
-				fi
-			done < <(jq -r '.versions[] | select(.type == "snapshot") | "\(.id) \(.type)"' "$SHdir/manifests/vanilla_version_manifest.json")
-			printf -- "|=============================|\n"
+			if [ "$modloader" == "vanilla" ]; then
+				printf -- "|=======================================================|\n"
+				printf "| %-25s | %-25s |\n" "VERSION" "TYPE"
+				printf -- "|-------------------------------------------------------|\n"
+				while read -r id type; do
+					log "DEBUG" "version.sh:list" "Checking version \"$id\""
+					if [ "$toGrep" == "" ]; then
+						printf "| %-25s | %-25s |\n" "$id" "$type"
+					else
+						printf "| %-25s | %-25s |\n" "$id" "$type" | grep "$toGrep"
+					fi
+				done < <(jq -r '.versions[] | select(.type == "snapshot") | "\(.id) \(.type)"' "$SHdir/manifests/vanilla_version_manifest.json")
+				printf -- "|=======================================================|\n"
+			elif [ "$modloader" == "fabric" ]; then
+				printf "|============================================================|\n"
+				printf "| %-40s | %-15s |\n" "VERSION" "TYPE"
+				printf -- "|---------------------------------------------------------|\n"
+				while read -r id stable; do
+					log "DEBUG" "version.sh:list" "Checking version \"$id\""
+					if [ "$stable" == "true" ]; then
+						type=release
+					else
+						type=snapshot
+					fi
+					if [ "$toGrep" == "" ]; then
+						printf "| %-40s | %-15s |\n" "$id" "$type"
+					else
+						printf "| %-40s | %-15s |\n" "$id" "$type" | grep "$toGrep"
+					fi
+				done < <(jq -r '.[] | select(.stable == false) | "\(.version) \(.stable)"' "$SHdir/manifests/fabric/fabric_game_manifest.json")
+				printf -- "|============================================================|\n"
+			fi
 		;;
 		"all")
 			if [ "$modloader" == "vanilla" ]; then
-				printf -- "|=============================|\n"
-				printf "| %-12s | %-12s |\n" "VERSION" "TYPE"
-				printf -- "|-----------------------------|\n"
+				printf -- "|=======================================================|\n"
+				printf "| %-25s | %-25s |\n" "VERSION" "TYPE"
+				printf -- "|-------------------------------------------------------|\n"
 				while read -r id type; do
 					log "DEBUG" "version.sh:list" "Checking version \"$id\""
-					type=$(trimCr "$type")
 					if [ "$toGrep" == "" ]; then
-						printf "| %-12s | %-12s |\n" "$id" "$type"
+						printf "| %-25s | %-25s |\n" "$id" "$type"
 					else
-						printf "| %-12s | %-12s |\n" "$id" "$type" | grep "$toGrep"
+						printf "| %-25s | %-25s |\n" "$id" "$type" | grep "$toGrep"
 					fi
-				done < <(jq -r '.versions[] | "\(.id)  --  \(.type)"' "$SHdir/manifest/vanilla_version_manifest.json")
+				done < <(jq -r '.versions[] | "\(.id) \(.type)"' "$SHdir/manifests/vanilla_version_manifest.json")
+				printf -- "|=======================================================|\n"
 				unset -v toGrep
 			elif [ "$modloader" == "neoforge" ]; then
 				printf -- "|==========================================================|\n"
@@ -891,7 +932,6 @@ list() {
 				mapfile -t content < <(jq -r '.[]' "$SHdir/manifests/neoforge_version_manifest.json")
 
 				for (( i=0; i<${#content[@]}; i++ )); do
-					content[i]=$(trimCr "${content[$i]}")
 					IFS='.' read -ra versPart <<< "${content[i]}"
 					log "DEBUG" "version.sh:list" "Checking version \"${versPart[*]}\""
 					if [[ "${versPart[-1]}" =~ beta ]]; then
@@ -930,6 +970,25 @@ list() {
 				done
 				printf -- "|==========================================================|\n"
 				unset -v toGrep
+			elif [ "$modloader" == "fabric" ]; then
+				printf -- "|============================================================|\n"
+				printf "| %-40s | %-15s |\n" "VERSION" "TYPE"
+				printf -- "|------------------------------------------------------------|\n"
+				while read -r id stable; do
+					log "DEBUG" "version.sh:list" "Checking version \"$id\""
+					if [ "$stable" == "true" ]; then
+						type=release
+					else
+						type=snapshot
+					fi
+					if [ "$toGrep" == "" ]; then
+						printf "| %-40s | %-15s |\n" "$id" "$type"
+					else
+						printf "| %-40s | %-15s |\n" "$id" "$type" | grep "$toGrep"
+					fi
+				done < <(jq -r '.[] | "\(.version) \(.stable)"' "$SHdir/manifests/fabric/fabric_game_manifest.json")
+				printf -- "|============================================================|\n"
+				unset -v toGrep
 			fi
 		;;
 		"")
@@ -939,7 +998,6 @@ list() {
 				printf -- "|--------------------------------|\n"
 				while read -r id type; do
 					log "DEBUG" "version.sh:list" "Checking version \"$id\""
-					type=$(trimCr "$type")
 					if [ "$toGrep" == "" ]; then
 						printf "| %-12s | %-15s |\n" "$id" "$type"
 					else
@@ -955,7 +1013,6 @@ list() {
 				mapfile -t content < <(jq -r '.[] | select(. | contains("-beta") | not)' "$SHdir/manifests/neoforge_version_manifest.json")
 
 				for (( i=0; i<${#content[@]}; i++ )); do
-					content[i]=$(trimCr "${content[$i]}")
 					IFS='.' read -ra versPart <<< "${content[i]}"
 					if [[ "${versPart[-1]}" =~ [[:alpha:]] ]]; then
 						versPart[-2]="${versPart[-2]}${versPart[-1]}"
@@ -991,13 +1048,53 @@ list() {
 						printf "| %-12s | %-23s | %-15s |\n" "$mcVers" "$modlVers" "$versType" | grep "$toGrep"
 					fi
 				done
-				printf -- "|==========================================================|\n"
+				printf -- "|==============================|\n"
+				unset -v toGrep
+			elif [ "$modloader" == "fabric" ]; then
+				printf -- "|================================|\n"
+				printf "| %-12s | %-15s |\n" "VERSION" "TYPE"
+				printf -- "|--------------------------------|\n"
+				while read -r id stable; do
+					log "DEBUG" "version.sh:list" "Checking version \"$id\""
+					if [ "$stable" == "true" ]; then
+						type=release
+					else
+						type=snapshot
+					fi
+					if [ "$toGrep" == "" ]; then
+						printf "| %-12s | %-15s |\n" "$id" "$type"
+					else
+						printf "| %-12s | %-15s |\n" "$id" "$type" | grep "$toGrep"
+					fi
+				done < <(jq -r '.[] | select(.stable == true) | "\(.version) \(.stable)"' "$SHdir/manifests/fabric/fabric_game_manifest.json")
+				printf -- "|================================|\n"
 				unset -v toGrep
 			fi
 		;;
+		"loader")
+			targetMcVers=$2
+			if [ -z "$targetMcVers" ]; then
+				printf "${YELLOW}\"loader\" require a valid minecraft version, type \"version -m fabric list\"${RESET}\n"
+				return 2
+			fi
+			if [ -f "$SHdir/manifests/fabric/$targetMcVers.json" ] || ! fabricManifestDownloader "$targetMcVers"; then
+				return 1 # the logs are handled by fabricManifestDownloader, so we can just return
+			fi
+			printf -- "|==================================|\n"
+			printf "| %-12s | %-17s |\n" "VERSION" "LOADER"
+			printf -- "|----------------------------------|\n"
+			while read -r loaderVers; do
+					log "DEBUG" "version.sh:list" "Checking version \"$targetMcVers\""
+					if [ "$toGrep" == "" ]; then
+						printf "| %-12s | %-17s |\n" "$targetMcVers" "$loaderVers"
+					else
+						printf "| %-12s | %-17s |\n" "$targetMcVers" "$loaderVers" | grep "$toGrep"
+					fi
+			done < <(jq -r '.[] | "\(.loader.version)"' "$SHdir/manifests/fabric/$targetMcVers/$targetMcVers.json")
+			printf -- "|==================================|\n"
+		;;
 		*)
-			echo "Unknown filters or parameters:"
-			paramScreenFiller
+			printf "${YELLOW}Unknown filters or parameter${RESET}\n"
 	esac
 }
 
@@ -1040,9 +1137,10 @@ function helpPage() {
 	printf " - list [-m/-v] [<instruction>] : List every version available. Additional instruction may be provided which can be : \n"
 	printf "       - (nothing) : Prints every release version\n"
 	printf "       - snapshot : Prints every snapshot version\n"
-	printf "       - b4release : Prints every alpha and beta version\n"
+	printf "       - b4 | b4release : Prints every alpha and beta version\n"
 	printf "       - all : Prints every (snapshot, alpha and beta included) version\n"
 	printf "       - installed : Prints every version that are currently installed\n"
+	printf "       - loader <minecraft version>: (for fabric only), shows every loader version avaiable for the specified minecraft version\n"
 	printf " - install [-m] <vanilla version> [<modloader version>] : Install the specified version (some version might not be supported)\n"
 	printf " - remove [-m] <vanilla version> [<modloader version>] : Remove the specified version. This instruction is quite inefficient.\n"
 	printf " - help : Print this help\n"
