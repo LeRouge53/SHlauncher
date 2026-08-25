@@ -95,7 +95,7 @@ portable=false
 IFSBak=$' \t\n'
 cip=true
 export SHlname="SHlauncherBE"
-export SHlvers="0.3.6"
+export SHlvers="0.4.0"
 
 function argHandler() {
 	case $1 in
@@ -427,7 +427,6 @@ if [ ! -f manifests/neoforge_version_manifest.json ] || [ ! -s manifests/neoforg
 	printf "${RED_BOLD}[ERROR]${RESET}${RED} Invalid version manifest : file is missing or empty. You will not be able to list any Neoforge versions. Restart the launcher to reload the manifest${RESET}\n"
 fi
 if [ ! -f manifests/fabric/fabric_game_manifest.json ] || [ ! -s manifests/fabric/fabric_game_manifest.json ]; then
-
 	log "ERROR" "init.sh" "One or multiple fabric manifests are corrupted or empty"
 	printf "${RED_BOLD}[ERROR]${RESET}${RED} Invalid version manifest : file is missing or empty. You will not be able to list any Fabric versions. Restart the launcher to reload the manifest${RESET}\n"
 fi

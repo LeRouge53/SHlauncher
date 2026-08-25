@@ -85,9 +85,10 @@ function create() {
 		;;
 		"fabric" | "Fabric")
 			modloader="fabric"
-			if [ "$modloaderVersion" == "" ]; then
+			if [ -z "$modloaderVersion" ]; then
 				printf "${RED_BOLD}The modloader version is mandatory for this modloader, please specify a modloader version and retry${RESET}\n"
 			fi
+			fullModLoaderVers="$version-$modloaderVersion"
 		;;
 		"quilt" | "Quilt")
 			modloader="quilt"
@@ -110,13 +111,11 @@ function create() {
 	log "DEBUG" "instance.sh:create" "Resolved versionProfile to \"$versionProfile\""
 
 	if ${parameter[anotherGameDir]}; then
-		# shellcheck disable=SC2154 # il l'est
 		gameDir="$MCdir/instances/$name/"
 		mkdir -p "$gameDir"
 	elif [[ -n "${parameter[customGameDir]}" ]]; then
 		gameDir="${parameter[customGameDir]}"
 	else
-		# shellcheck disable=SC2154
 		gameDir="$MCdir/"
 	fi
 	

@@ -7,19 +7,18 @@ function helpPage() {
 	printf "To actually use \"help\" as an instance name, type \"\\help\"\n"
 }
 
-log "INFO" "opendir.sh" "opendir.sh called with instructions ${instructions[*]}"
+log "INFO" "opendir.sh" "opendir.sh called with instructions \"$*\""
 
 targetInst=$1
 if [ "$targetInst" = "" ]; then
 	# shellcheck disable=SC2154
-	targetInst=$instance
+	targetInst=${Sett[SelectedInstance]}
 elif [ "$targetInst" = "help" ]; then
 	helpPage
 	return
 elif [ "$targetInst" = "\help" ]; then
 	targetInst="help"
 fi
-
 if [ "$targetInst" == "None" ]; then
 	printf "${RED_BOLD}You did not selected or specified any instances, please do!${RESET}\n"
 	return 2

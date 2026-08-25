@@ -12,10 +12,7 @@ function fabricManifestDownloader() {
 		log "ERROR" "version.sh:fabricManifestDownloader" "BUG : Some argument are missing. Expected argument: gameVers \"$gameVers\", loaderVers (optional) \"$loaderVers\""
 		return 2
 	fi
-	if ! $onlineMode; then
-		$noPrint || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n"
-		return 1
-	fi
+	
 	case $noPrint in
 		true | false)
 			true
@@ -24,8 +21,13 @@ function fabricManifestDownloader() {
 			false
 	esac
 
-	mkdir -p "$SHdir/manifests/fabric/$gameVers"
+	if ! $onlineMode; then
+		$noPrint || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n"
+		return 1
+	fi
+
 	if [ -z "$loaderVers" ]; then
+		mkdir -p "$SHdir/manifests/fabric/$gameVers/"
 		if curl -fsL "https://meta.fabricmc.net/v2/versions/loader/$gameVers/" | jq '.' > "$SHdir/manifests/temp_manifest.json"; then
 			cat "$SHdir/manifests/temp_manifest.json" > "$SHdir/manifests/fabric/$gameVers/$gameVers.json"
 		else
@@ -34,11 +36,12 @@ function fabricManifestDownloader() {
 			return 1
 		fi
 	else
-		if curl -fsL "https://meta.fabricmc.net/v2/versions/loader/$gameVers/$loaderVers/profiles/json" | jq '.' > "$SHdir/manifests/temp_manifest.json"; then
-			cat "$SHdir/manifests/temp_manifest.json" > "$SHdir/manifests/fabric/$gameVers/$gameVers-$loaderVers.json"
+		mkdir -p "$MCdir/versions/fabric-$gameVers-$loaderVers"
+		if curl -fsL "https://meta.fabricmc.net/v2/versions/loader/$gameVers/$loaderVers/profile/json" | jq '.' > "$SHdir/manifests/temp_manifest.json"; then
+			cat "$SHdir/manifests/temp_manifest.json" > "$MCdir/versions/fabric-$gameVers-$loaderVers/fabric-$gameVers-$loaderVers.json"
 		else
 			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch game version \"$gameVers\" with loader \"$loaderVers\"; version is invalid or unsupported by fabric"
-			$noPrint || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid${RESET}\n"
+			$noPrint || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid or unsupported by fabric${RESET}\n"
 			return 1
 		fi
 	fi
@@ -46,7 +49,8 @@ function fabricManifestDownloader() {
 }
 
 function install() {
-	side="client"
+	side="client" # only supported side for the moment, we'll see that later
+	declare -g outputCp
 
 	function installLib() {
 		local inputFile=$1
@@ -61,16 +65,18 @@ function install() {
 		fi
 
 		outputCp=""
+		local goal
 		goal=$(jq -r '.libraries | length' "$inputFile")
 		log "INFO" "version.sh:install:installLib" "Downloading $goal libraries"
-		actual=0
+		local actual=0
 		while IFS='|' read -r type url path sha1 extract; do
 
 			printf "${BLUE_BOLD}Downloading $path...${RESET}\n"
 			log "DEBUG" "version.sh:install:installLib" "Started downloading $path"
-			dest="$outputDir/$path"
+			local dest="$outputDir/$path"
 			mkdir -p "$(dirname "$dest")"
 
+			local local_sha1
 			if [[ -f "$dest" ]]; then
 				local_sha1=$(sha1sum "$dest" | cut -d' ' -f1)
 				if [ "$local_sha1" = "$sha1" ]; then
@@ -91,16 +97,19 @@ function install() {
 					continue
 				else
 					printf "${YELLOW}Invalid hash of \"${path}\", redownload required${RESET}\n"
-					log "DEBUG" "version.sh:install:installLib" "$path was already installed and has been skipped"
+					log "WARN" "version.sh:install:installLib" "$path has an invalid hash, expected $sha1 but got $local_sha1"
 				fi
 			fi
 
-			curl --retry 5 --retry-delay 2 -sLo "$dest" "$url" &>/dev/null
+			if ! exceptionCatch "version.sh:install:installLib" curl --retry 5 --retry-delay 2 -fsSLo "$dest" "$url"; then
+				printf "${RED_BOLD}Failed to download $path, check the log file for more info${RESET}\n"
+				return 1
+			fi
 			local_sha1=$(sha1sum "$dest" | cut -d' ' -f1)
 
 			if [ "$local_sha1" != "$sha1" ]; then
 				printf "${YELLOW}Failed to download $path : mismatched hash\n"
-				log "ERROR" "version.sh:install:installLib" "Failed to install $path, download failed. Exiting"
+				log "ERROR" "version.sh:install:installLib" "Failed to install $path, abort due to mismatched hash. Expected $sha1 but got $local_sha1"
 				printf "${RED}Error is non recoverable : please retry${RESET}\n"
 				return 1
 			fi
@@ -125,9 +134,9 @@ function install() {
 			actual=$((actual+1))
 			printf "${GREEN}Finished downloading \"$path\"\n"
 			log "DEBUG" "version.sh:install:installLib" "Finished downloading $path"
-			printf "Downloaded $actual libraries out of $goal${RESET}\n"
+			printf "Processed $actual libraries out of $goal${RESET}\n"
 
-		done < <(jq -r --arg os "$osName" --arg libRoot "$libRoot" ' 
+		done < <(jq -r --arg os "$osName" ' 
 			.libraries[] | 
 			. as $lib | 
 			( if $lib.rules == null then 
@@ -154,6 +163,82 @@ function install() {
 				$lib.downloads.classifiers["natives-\($os)"] as $native |
 				"native|\($native.url)|\($native.path)|\($native.sha1)|\($extract)" else empty end ) else empty end
 				' "$inputFile")
+	}
+	function installFabricLib() {
+		local inputFile=$1
+		local outputDir=$2
+
+		log "INFO" "version.sh:install:installFabricLib" "Started library install job with input file \"$inputFile\" and output directory \"$outputDir\""
+
+		if [[ -z $inputFile ]] || [[ -z $outputDir ]]; then
+			printf "${YELLOW_BOLD}[BUG] function installFabricLib require 2 argument, but some are missing! Check the log file for more info\n"
+			log "ERROR" "version.sh:install:installFabricLib" "BUG : Some argument are missing. Expected argument: inputFile \"$inputFile\", outputDir \"$outputDir\""
+			return 2
+		fi
+
+		outputCp=""
+		local goal
+		goal=$(jq -r '.libraries | length' "$inputFile")
+		log "INFO" "version.sh:install:installFabricLib" "Downloading $goal libraries"
+		local actual=0
+
+		while IFS='|' read -r name url sha1; do
+			local path
+			path=$(mavenParser "$name")
+			printf "${BLUE_BOLD}Downloading $path...${RESET}\n"
+			log "DEBUG" "version.sh:install:installFabricLib" "Started downloading $path"
+			local dest="$outputDir/$path"
+			mkdir -p "$(dirname "$dest")"
+
+			if [ "$sha1" = "null" ]; then
+				if [ -f "$dest.sha1" ]; then
+					sha1=$(awk '{print $1}' "$dest.sha1" | tr -d '\r\n')
+				else
+					log "WARN" "version.sh:install:installFabricLib" "Checksum not found, downloading from maven.fabric.net"
+					if ! exceptionCatch "version.sh:install:installFabricLib" curl --retry 5 --retry-delay 2 -fsSLo "$dest.sha1" "$url/$path.sha1"; then
+						printf "${RED_BOLD}Failed to download sha1 of $path, check the log file for more info${RESET}\n"
+						return 1
+					fi
+					sha1=$(awk '{print $1}' "$dest.sha1" | tr -d '\r\n')
+				fi
+			fi
+
+			local local_sha1
+			if [ -f "$dest" ]; then
+				local_sha1=$(sha1sum "$dest" | cut -d' ' -f1)
+				if [ "$local_sha1" = "$sha1" ]; then
+					outputCp="${outputCp}${cmdSeparator}${dest}"
+					printf "${GREEN}Skipping $path, already downloaded${RESET}\n"
+					log "DEBUG" "version.sh:install:installFabricLib" "$path was already installed and has been skipped"
+					actual=$((actual+1))
+					printf "${GREEN}Downloaded $actual libraries out of $goal${RESET}\n"
+					continue
+				else
+					printf "${YELLOW}Invalid hash of \"${path}\", redownload required${RESET}\n"
+					log "WARN" "version.sh:install:installFabricLib" "$path has an invalid hash, expected $sha1 but got $local_sha1"
+				fi
+			fi
+
+			if ! exceptionCatch "version.sh:install:installFabricLib" curl --retry 5 --retry-delay 2 -fsSLo "$dest" "$url/$path"; then
+				printf "${RED_BOLD}Failed to download $path, check the log file for more info${RESET}\n"
+				return 1
+			fi
+			local_sha1=$(sha1sum "$dest" | cut -d' ' -f1)
+
+			if [ "$local_sha1" != "$sha1" ]; then
+				printf "${YELLOW}Failed to download $path : mismatched hash\n"
+				log "ERROR" "version.sh:install:installLib" "Failed to install $path, abort due to mismatched hash. Expected $sha1 but got $local_sha1"
+				printf "${RED}Error is non recoverable : please retry${RESET}\n"
+				return 1
+			fi
+
+			outputCp="${outputCp}${cmdSeparator}${dest}"
+			actual=$((actual+1))
+			printf "${GREEN}Finished downloading \"$path\"\n"
+			log "DEBUG" "version.sh:install:installLib" "Finished downloading $path"
+			printf "Processed $actual libraries out of $goal${RESET}\n"
+			
+		done < <(jq -r '.libraries[] | "\(.name)|\(.url)|\(.sha1)"' "$inputFile")
 	}
 
 
@@ -185,12 +270,11 @@ function install() {
 	targetVers=$1
 	modlVers=$2
 
-	# shellcheck disable=SC2154
-	versDir="$MCdir/versions"
 	if ! $onlineMode; then
 		printf "${RED}Can't download, you are in offline mode${RESET}\n"
 		return 1
 	fi
+	versDir="$MCdir/versions"
 
 	case $modloader in
 		"vanilla")
@@ -287,12 +371,12 @@ function install() {
 			inheritedVers=$(jq -r '.inheritsFrom' "$versionJson")
 			if ! [[ -f "$versDir/$inheritedVers/$inheritedVers.jar" ]]; then
 				printf "${RED_BOLD}The requested version inherits part of his content from the vanilla $inheritedVers version, please install it first${RESET}\n"
-				log "ERROR" "version.sh:install" "Install aborted, Missing dependency vanilla $inheritedVers"
+				log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
 				return 1
 			fi
 
 			local isDone=false
-			local allJavaVers=(25 21 17 16 8) # dans l'ordre inverse pour avoir la version la plus récente en 1er
+			local allJavaVers=(25 21 17 16 8) # reversed to get the more recent version first
 			for version in "${allJavaVers[@]}"; do
 				if "$SHdir/java/${version}/bin/java" -version &>/dev/null; then
 					localJava="$SHdir/java/$version/bin/java"
@@ -312,27 +396,26 @@ function install() {
 			echo "Downloading installation libraries"
 			log "INFO" "version.sh:install" "Downloading installation libraries..."
 			installLib "$installDir/install_profile.json" "$MCdir/libraries"
-			unset -v outputCp
 
 			declare -A installVars
 			installVars["ROOT"]="$MCdir" 
 			installVars["INSTALLER"]="$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar"
-			installVars["SIDE"]="$side" # client seulement
-			installVars["MINECRAFT_JAR"]="$versDir/$inheritedVers/$inheritedVers.jar" # jar vanilla de minecraft
-			installVars["MINECRAFT_VERSION"]="$targetVers" # version du jeu 
-			installVars["LIBRARY_DIR"]="./libraries/"
-			installVars["VERSION_JSON"]="$versDir/$inheritedVers/$inheritedVers.json" # json vanilla du jeu
+			installVars["SIDE"]="$side" # client only
+			installVars["MINECRAFT_JAR"]="$versDir/$inheritedVers/$inheritedVers.jar" # vanilla jar file
+			installVars["MINECRAFT_VERSION"]="$targetVers" # game version 
+			installVars["LIBRARY_DIR"]="$MCdir/libraries/"
+			installVars["VERSION_JSON"]="$versDir/$inheritedVers/$inheritedVers.json" # vanilla game JSON
 
 			while IFS='|' read -r datName datVal; do
 				if [[ $datVal == *"["* ]]; then
-					datVal=$(mavenParser "$datVal") # asset au format maven
+					datVal=$(mavenParser "$datVal") # maven coordinate
 				elif [[ $datVal == *"'"* ]]; then
-					datVal="${datVal//"'"/}" # string littéral
+					datVal="${datVal//"'"/}" # literal string
 				else
 					datVal=$(echo "$datVal" | sed 's/^\///')
 					command -p install -D /dev/null "./libraries/$datVal"
 					unzip -po "$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar" \
-						"$datVal" > "./libraries/$datVal" # fichier littéral
+						"$datVal" > "./libraries/$datVal" # literal file
 				fi
 				installVars["$datName"]="$datVal"
 			done < <(jq -r --arg side "$side" ' 
@@ -378,6 +461,21 @@ function install() {
 					newIndex=$((i+1))
 				fi
 			done
+		;;
+		"fabric")
+			echo "Starting download..."
+			log "INFO" "version.sh:install" "Requested download of version $targetVers $modlVers"
+			fullModLoaderVers="${targetVers}-${modlVers}"
+			versionJson="$versDir/fabric-$fullModLoaderVers/fabric-${fullModLoaderVers}.json"
+			fabricManifestDownloader "$targetVers" "$modlVers"
+
+			inheritedVers=$(jq -r '.inheritsFrom' "$versionJson")
+			if ! [ -f "$versDir/$inheritedVers/$inheritedVers.jar" ]; then
+				printf "${RED_BOLD}The requested version inherits part of his content from the vanilla $inheritedVers version, please install it first${RESET}\n"
+				log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
+				return 1
+			fi
+		;;
 	esac
 
 	mkdir -p "natives/java"
@@ -395,7 +493,6 @@ function install() {
 			client="versions/${targetVers}/${targetVers}.jar"
 			classpath="${classpath}${cmdSeparator}${client}"
 			log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
-			unset -v outputCp
 		;;
 		"neoforge")
 			printf "${BLUE_BOLD}Merging vanilla and modded library list${RESET}\n"
@@ -454,6 +551,12 @@ function install() {
 			unset -v CPInAnArray
 			unset -v tempArgs
 			unset -v newIndex
+	;;
+	"fabric")
+		log "INFO" "version.sh:install" "Installing game libraries..."
+		installFabricLib "$versionJson" "libraries"
+		classpath=$outputCp
+		log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
 	esac
 
 	if [ "$modloader" == "vanilla" ]; then
@@ -486,7 +589,7 @@ function install() {
 			mkdir -p "$assetDir/objects"
 			mkdir -p "$assetDir/indexes"
 			read -r id url < <(jq -r '. | "\(.assetIndex.id) \(.assetIndex.url)"' "$versionJson")
-			#printf '%q\n' -- note pour plus tard
+			#printf '%q\n' -- note for later
 			curl --fail --retry 5 --retry-delay 2 -s "$url"  | jq '.' > "$assetDir/indexes/$id.json"
 
 			function parallelDownload() {
@@ -630,9 +733,9 @@ function install() {
 
 	echo "Saving progress"
 
-	# comparaison de version
-	version_gte() { printf '%s\n%s\n' "$2" "$1" | sort -V -C; }
-	version_lte() { printf '%s\n%s\n' "$1" "$2" | sort -V -C; }
+	# version comparison
+	function version_gte() { printf '%s\n%s\n' "$2" "$1" | sort -V -C; }
+	function version_lte() { printf '%s\n%s\n' "$1" "$2" | sort -V -C; }
 
 	evaluateArgEntry() {
 		local entry="$1"
@@ -645,22 +748,18 @@ function install() {
 		log "DEBUG" "version.sh:install:evaluateArgEntry" "Evaluating $entry"
 
 		if [[ "$type" == "string" ]]; then
-			# String simple = toujours incluse
 			echo "$entry" | jq -r '.'
 			return
 		fi
 
-		# C'est un objet avec rules et value
 		local rules; rules=$(echo "$entry" | jq '.rules // []')
 		local rules_count; rules_count=$(echo "$rules" | jq 'length')
 
 		if [[ "$rules_count" -eq 0 ]]; then
-			# Objet sans rules = toujours inclus
 			echo "$entry" | jq -r '.value | if type == "array" then .[] else . end'
 			return
 		fi
 
-		# Évaluer les rules
 		local state="false"
 
 		while IFS= read -r rule; do
@@ -672,17 +771,17 @@ function install() {
 
 			local match=true
 
-			# Vérif os.name
+			# checking os.name
 			if [[ -n "$rule_os_name" && "$rule_os_name" != "$os_name" ]]; then
 				match=false
 			fi
 
-			# Vérif os.arch
+			# checking os.arch
 			if [[ -n "$rule_os_arch" && "$rule_os_arch" != "$arch" ]]; then
 				match=false
 			fi
 
-			# Vérif versionRange (seulement si os_name correspond déjà)
+			# checking versionRange
 			if [[ "$match" == "true" && -n "$range_min" ]]; then
 				if ! version_gte "$os_version" "$range_min"; then match=false; fi
 			fi
@@ -701,12 +800,12 @@ function install() {
 		fi
 	}
 
-	# Détection du format
+	# check format
 	hasArgs=$(jq 'has("arguments")' "$versionJson")
 	if [[ "$hasArgs" == "true" ]]; then
 		jsonFormatIsModern=true  # 1.13+
 	else
-		jsonFormatIsModern=false # avant 1.13 : (minecraftArguments)
+		jsonFormatIsModern=false # before 1.13 : (minecraftArguments)
 	fi
 
 	log "INFO" "version.sh:install" "Saving version..."
@@ -751,14 +850,26 @@ function install() {
 			while IFS= read -r entry; do
 				while IFS= read -r val; do
 					jvmArgs+=("$val")
-				done < <(evaluateArgEntry "$entry" "$(detect_os)" "" "$(detect_arch)")
+				done < <(evaluateArgEntry "$entry" "$osName" "" "$(detect_arch)")
 			done < <(jq -c '.arguments.jvm[]' "$versionJson")
 
 			gameArgsJson=$(jq '.arguments.game' "$versionJson")
 			log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers.json"
+		;;
+		"fabric")
+			while IFS= read -r entry; do
+				while IFS= read -r val; do
+					jvmArgs+=("$val")
+				done < <(evaluateArgEntry "$entry" "$osName" "" "$(detect_arch)")
+			done < <(jq -c '.arguments.jvm[]' "$versionJson")
+
+			gameArgsJson=$(jq '.arguments.game' "$versionJson")
+			inheritedClasspath=$(jq -r '.classpath' "$SHdir/versions/$inheritedVers.json")
+			classpath="${inheritedClasspath}${classpath}"
+			log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers.json"
 	esac
 
-	jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -Rs 'split("\n")[:-1]') # jvmArgs pose des \r partout, pas un problème pour le moment
+	jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -Rs 'split("\n")[:-1]')
 
 	mainClass="$(jq -r '.mainClass // empty' "$versionJson")"
 	versionType=$(jq -r '.type' "$versionJson")
@@ -791,9 +902,11 @@ function install() {
 				"mainClass": $mainClass,
 				"nativesDir": ("natives"),
 				"log4jconf": ("SHlauncher/log4jconf/" + $log4jName),
-			}' > "./SHlauncher/versions/$targetVers.json"
+			}' > "$SHdir/versions/$targetVers.json"
 		;;
 		"neoforge")
+			echo "$gameArgsJson"
+			echo "$jvmArgsJson"
 			jq -n \
 			--arg name "$fullModLoaderVers" \
 			--arg inheritFrom "$inheritedVers" \
@@ -811,7 +924,27 @@ function install() {
 				"moddedGameArgs": $moddedGameArgs,
 				"moddedJvmArgs": $moddedJvmArgs,
 				"mainClass": $mainClass
-			}' > "./SHlauncher/versions/neoforge-$fullModLoaderVers.json"
+			}' > "$SHdir/versions/neoforge-$fullModLoaderVers.json"
+		;;
+		"fabric")
+			jq -n \
+			--arg name "$fullModLoaderVers" \
+			--arg inheritsFrom "$inheritedVers" \
+			--arg versionType "$versionType" \
+			--arg moddedCp "$classpath" \
+			--argjson moddedGameArgs "$gameArgsJson" \
+			--argjson moddedJvmArgs "$jvmArgsJson" \
+			--arg mainClass "$mainClass" \
+			' {
+				"name": $name,
+				"modloader": "fabric",
+				"inheritsFrom": $inheritsFrom,
+				"versionType": $versionType,
+				"moddedCp": $moddedCp,
+				"moddedGameArgs": $moddedGameArgs,
+				"moddedJvmArgs": $moddedJvmArgs,
+				"mainClass": $mainClass
+			}' > "$SHdir/versions/fabric-$fullModLoaderVers.json"
 	esac
 }
 
@@ -991,6 +1124,28 @@ function list() {
 				unset -v toGrep
 			fi
 		;;
+		"loader")
+			targetMcVers=$2
+			if [ -z "$targetMcVers" ]; then
+				printf "${YELLOW}\"loader\" require a valid minecraft version, type \"version -m fabric list\"${RESET}\n"
+				return 2
+			fi
+			if [ -f "$SHdir/manifests/fabric/$targetMcVers/$targetMcVers.json" ] || ! fabricManifestDownloader "$targetMcVers"; then
+				return 1 # the logs are handled by fabricManifestDownloader, so we can just return
+			fi
+			printf -- "|==================================|\n"
+			printf "| %-12s | %-17s |\n" "VERSION" "LOADER"
+			printf -- "|----------------------------------|\n"
+			while read -r loaderVers; do
+					log "DEBUG" "version.sh:list" "Checking version \"$targetMcVers\""
+					if [ "$toGrep" == "" ]; then
+						printf "| %-12s | %-17s |\n" "$targetMcVers" "$loaderVers"
+					else
+						printf "| %-12s | %-17s |\n" "$targetMcVers" "$loaderVers" | grep "$toGrep"
+					fi
+			done < <(jq -r '.[] | "\(.loader.version)"' "$SHdir/manifests/fabric/$targetMcVers/$targetMcVers.json")
+			printf -- "|==================================|\n"
+		;;
 		"")
 			if [ "$modloader" == "vanilla" ]; then
 				printf -- "|================================|\n"
@@ -1048,7 +1203,7 @@ function list() {
 						printf "| %-12s | %-23s | %-15s |\n" "$mcVers" "$modlVers" "$versType" | grep "$toGrep"
 					fi
 				done
-				printf -- "|==============================|\n"
+				printf -- "|==========================================================|\n"
 				unset -v toGrep
 			elif [ "$modloader" == "fabric" ]; then
 				printf -- "|================================|\n"
@@ -1070,28 +1225,6 @@ function list() {
 				printf -- "|================================|\n"
 				unset -v toGrep
 			fi
-		;;
-		"loader")
-			targetMcVers=$2
-			if [ -z "$targetMcVers" ]; then
-				printf "${YELLOW}\"loader\" require a valid minecraft version, type \"version -m fabric list\"${RESET}\n"
-				return 2
-			fi
-			if [ -f "$SHdir/manifests/fabric/$targetMcVers.json" ] || ! fabricManifestDownloader "$targetMcVers"; then
-				return 1 # the logs are handled by fabricManifestDownloader, so we can just return
-			fi
-			printf -- "|==================================|\n"
-			printf "| %-12s | %-17s |\n" "VERSION" "LOADER"
-			printf -- "|----------------------------------|\n"
-			while read -r loaderVers; do
-					log "DEBUG" "version.sh:list" "Checking version \"$targetMcVers\""
-					if [ "$toGrep" == "" ]; then
-						printf "| %-12s | %-17s |\n" "$targetMcVers" "$loaderVers"
-					else
-						printf "| %-12s | %-17s |\n" "$targetMcVers" "$loaderVers" | grep "$toGrep"
-					fi
-			done < <(jq -r '.[] | "\(.loader.version)"' "$SHdir/manifests/fabric/$targetMcVers/$targetMcVers.json")
-			printf -- "|==================================|\n"
 		;;
 		*)
 			printf "${YELLOW}Unknown filters or parameter${RESET}\n"
