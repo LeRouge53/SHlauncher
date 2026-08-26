@@ -4,6 +4,7 @@ cd "$MCdir" || return 255
 touch .lastLaunchedGame
 
 substituteArg() {
+	# this function is the reason launching takes 10s on windows
 	local arg="$1"
 	local oldArg=$arg
 	if [ "$arg" == "" ]; then
@@ -17,7 +18,7 @@ substituteArg() {
 	arg="${arg//'${natives_directory}'/$nativesDir}"
 	arg="${arg//'${library_directory}'/"libraries"}"
 	arg="${arg//'${classpath_separator}'/"$cmdSeparator"}"
-	arg="${arg//'${version_name}'/"${modloader}-${fullModLoaderVers}"}" # en gros c'est <ModlName>-<Modlvers>
+	arg="${arg//'${version_name}'/"${modloader}-${fullModLoaderVers}"}"
 
 	arg="${arg//'${launcher_name}'/$SHlname}"
 	arg="${arg//'${launcher_version}'/$SHlvers}"
@@ -45,7 +46,6 @@ substituteArg() {
 function launch() {
 	launchProf=$1
 	launchInst=$2
-	# shellcheck disable=SC2194 # inverted case statement 
 	case "" in
 		"$launchProf" | "$launchInst")
 			printf "${YELLOW_BOLD}[BUG] Function launch require 2 arguments but some are missing! Check the log file for more info\n" >&2
@@ -62,7 +62,8 @@ function launch() {
 
 	modloader=$(jq -r '.modloader' "$SHdir/versions/$jsonInstance.json")
 	if [ "$modloader" == "" ] || [ "$modloader" == "null" ]; then modloader="vanilla"; fi
-
+	
+	# get a lot of info from json files
 	if [ "$modloader" == "vanilla" ]; then
 		IFS='|' read -r version versionType runtime assetIndex mainClass nativesDir log4jconf classpath < \
 			<(jq -r '"\(.name)|\(.versionType)|\(.runtime)|\(.assetIndexId)|\(.mainClass)|\(.nativesDir)|\(.log4jconf)|\(.classpath)"' "$SHdir/versions/$jsonInstance.json")
@@ -105,6 +106,7 @@ function launch() {
 		java="$SHdir/java/$runtime/bin/java"
 	fi # else you don't touch it as it supposed to be a direct path to the java exec
 
+	# building arguments
 	jvmArgs+=("${additionalJvmArgs[@]}")
 	if [ "$modloader" != "vanilla" ]; then jvmArgs+=("${moddedJvmArgs[@]}"); fi
 	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
@@ -128,9 +130,9 @@ function launch() {
 		return 1
 	fi
 
-	# IT'S BOOTING (WE ARE BO-BO-BO-BOOOOTIIIIIIIIIIIING)
 	log "INFO" "launch.sh:launch" "All check completed, launching game!"
-	if echo "${finalJvmArgs[@]}" | grep -q "$mainClass"; then
+	if echo "${finalJvmArgs[@]}" | grep -q "$mainClass"; then # check if the JVM args already have a main class (for old minecraft version)
+		# if yes, don't specify it
 		echo "${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}" > .lastLaunchedGame
 		"${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}"
 	else

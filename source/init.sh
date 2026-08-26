@@ -6,9 +6,6 @@ dir=$(dirname -- "$(readlink "$0")") # POSIX compliant dir discovery
 if echo "$SHELLOPTS" | grep -q posix; then
 	# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
 	source "$dir/.minecraft/SHlauncher/crashHandler.sh" POSIX
-elif wslinfo --version &>/dev/null; then
-	# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
-	source "$dir/.minecraft/SHlauncher/crashHandler.sh" WSL
 fi
 
 function log() {

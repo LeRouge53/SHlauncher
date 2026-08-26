@@ -1,4 +1,3 @@
-# shellcheck disable=SC2059
 # shellcheck disable=SC2154
 function list() {
 	local allVers=(8 16 17 21 25)
@@ -21,6 +20,7 @@ function install() {
 	case $version in
 		"8" | "16" | "17" | "21" | "25")
 			log "INFO" "java.sh:install" "Requested download of $imageType $version"
+			# check if the version is already installed/needs to be reinstalled
 			if [[ -d "$versionDir/" ]] && ${parameter[reinstall]}; then
 				command -p rm -rf -- "${version:?}"
 				log "WARN" "java.sh:install" "Deleting java $version for reinstallation"
@@ -31,17 +31,20 @@ function install() {
 			fi
 			if [ "$version" == 16 ]; then
 				printf "${YELLOW}Warning, the selected version (16) is only available as JDK${RESET}\n"
-				imageType="jdk"
+				imageType="jdk" # adoptium doesn't provide java 16 in JRE, so we need a JDK
 			fi
 			printf "${BLUE_BOLD}Downloading target java...${RESET}\n"
+			# set the url and download it
 			url=https://api.adoptium.net/v3/binary/latest/"${version}"/ga/"$(detect_os)"/"$(detect_arch)"/"${imageType}"/hotspot/normal/eclipse
 			if ! exceptionCatch "java.sh:install" curl -LsS --retry 5 --retry-delay 2 "$url" -o ./temp_archive.compressed; then
 				printf "${RED}Failed to download Java, an issue occurred when attempting to download. Check the log file for more info${RESET}\n"
 				return 1
 			fi
+			# btw : the archive can be either zip or tar.gz, so I put a generic extension to avoid confusion
 
 			printf "${BLUE_BOLD}Unpacking archive...${RESET}\n"
 			mkdir -p "$versionDir"
+			# Unpack the archive based on the operating system
 			if [ "$osName" = "windows" ]; then
 				tmpfile=$(mktemp)
             	unzip -Z1 ./temp_archive.compressed > "$tmpfile"
@@ -59,6 +62,7 @@ function install() {
 					return 1
 				fi
 			fi
+			# check if you can run it
 			if exceptionCatch "java.sh:install" "$versionDir"/bin/java -version; then
 				printf "${GREEN_BOLD}Installation successful${RESET}\n"
 				log "INFO" "java.sh:install" "Installation was successful"

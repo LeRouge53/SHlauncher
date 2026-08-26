@@ -4,7 +4,7 @@ log "DEBUG" "core.sh" "Core.sh successfully called. Starting..."
 
 cd "$SHdir/commands" || "$SHdir/crashHandler.sh" CD_FAIL
 
-columnNumber="$(tput cols)"
+columnNumber="$(tput cols)" # checking terminal size
 [ "$?" -eq 127 ] && {
   log "ERROR" "core.sh" "Failed to check terminal size, \"tput\" command not found" # only made that because I tried to run the launcher on termux (it doesn't have tput)
 }

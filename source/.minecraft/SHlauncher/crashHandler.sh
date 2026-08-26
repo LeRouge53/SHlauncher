@@ -9,36 +9,33 @@ function terminate() {
 	set +x
 }
 if type log &>/dev/null; then
-	log "FATAL" "crashHandler.sh" "crashHandler called with code $1"
+	log "FATAL" "crashHandler.sh" "crashHandler called with code $1" # the script can be called very early, so I check if log is defined
 fi
 printf "${RED}SHlauncher has crashed! :${RESET}\n"
 case $1 in 
 	"CD_FAIL")
+		# triggers if a directory change operation fails
 		echo " The launcher failed to start due to a working directory switch error."
 		echo " - It could be due to insufficient authorizations, an incomplete installation or issues with the disk."
 		terminate
 		exit 2
 	;;
 	"SIGINT")
+		# triggers if Ctrl+c is pressed
 		echo " Received SIGINT (signal 2), forced to terminate."
 		echo " - Do not press control+C"
 		terminate
 		exit 130
 	;;
 	"POSIX")
+		# triggers if the script is launched with a posix shell
 		echo " The launcher is currently being run by an incompatible POSIX shell (like sh, ash or dash)"
 		echo " - Please use bash instead (or disable posix mode)"
 		terminate
 		exit 3
 	;;
-	"WSL")
-		echo " The launcher is currently being run on a Windows Substitute for Linux (WSL) operating system"
-		echo " - This script is NOT compatible with WSL."
-		echo " - Use the MSYS2 environment for Windows or a genuine linux distribution instead"
-		terminate
-		exit 4
-	;;
 	"SETT_LOAD_FAIL")
+		# triggers if settings.sh fails to load the settings 
 		echo " The launcher failed to start because it failed to load the main setting file (system.json)"
 		echo " - This is most likely caused by an error during installation."
 		echo " - please reinstall the launcher or restore the file located at \".minecraft/SHlauncher/settings/data/system.json\""
@@ -46,6 +43,7 @@ case $1 in
 		exit 5
 	;;
 	*)
+		# everything else
 		echo " The launcher crashed for an unspecified reason : $1."
 		terminate
 		exit 255

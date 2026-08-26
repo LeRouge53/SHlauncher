@@ -1,13 +1,14 @@
 # shellcheck disable=SC2154
-# shellcheck disable=SC2059
 
 function list() {
-	if [ "$(ls)" == "" ]; then
+	if [ "$(ls)" == "" ]; then # give me a better solution..
 		printf "${YELLOW}No Instances were set up (yet!)${RESET}\n"
 	else
 		for Finst in *.json; do
 			log "DEBUG" "settings.sh:list" "Checking instance \"${Finst}\""
-			IFS='|' read -r name version modloader gameDir java MinRam MaxRam modloaderVersion <<< "$(jq -r '"\(.name)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$Finst")"
+			# jq mess to get every displayed info
+			IFS='|' read -r name version modloader gameDir java MinRam MaxRam modloaderVersion <<< \
+				"$(jq -r '"\(.name)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$Finst")"
 			mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$Finst")
 			mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
 
@@ -25,16 +26,12 @@ function list() {
 }
 
 function SetColor() {
+	# basically the same thing as around the line 20 of core.sh
 	if [ "${Sett[SelectedInstance]}" == "None" ]; then \
 		DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	else
 		DispInst="${RL_START}${GREEN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	fi
-}
-
-
-function hp() {
-	true
 }
 
 function create() {
@@ -43,14 +40,13 @@ function create() {
 	version=$3
 	modloaderVersion=$4
 
-	# shellcheck disable=SC2194
-	case "" in
+	case "" in # check if vars are empty
 		"$name" | "$modloader" | "$version")
 		printf "${RED_BOLD}One or more argument were forgotten, this command require at least a name, a modloader (can be vanilla), and a minecraft version${RESET}\n"
 		return 2
 	esac
 
-	if [[ -f "./$name.json" ]]; then
+	if [[ -f "./$name.json" ]]; then # check if the instance already exist
 		printf "${RED_BOLD}The target instance already exist${RESET}\n"
 		return 1
 	fi
@@ -111,12 +107,12 @@ function create() {
 	log "DEBUG" "instance.sh:create" "Resolved versionProfile to \"$versionProfile\""
 
 	if ${parameter[anotherGameDir]}; then
-		gameDir="$MCdir/instances/$name/"
+		gameDir="$MCdir/instances/$name/" # creates a directory based on the instance name
 		mkdir -p "$gameDir"
 	elif [[ -n "${parameter[customGameDir]}" ]]; then
-		gameDir="${parameter[customGameDir]}"
+		gameDir="${parameter[customGameDir]}" # creates a directory based on user input
 	else
-		gameDir="$MCdir/"
+		gameDir="$MCdir" # if none are specified, just use .minecraft
 	fi
 	
 	jq -n \
@@ -148,6 +144,7 @@ function create() {
 }
 
 function sel() {
+	# check if the specified instance name is valid. If yes, write the setting key
 	name=$1
 	if ! [[ -f "$name.json" ]]; then echo "The selected Instance \"$name\" does not exist"; return 2; fi
 	log "INFO" "instance.sh:sel" "New instance is \"$name\""

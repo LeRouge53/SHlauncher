@@ -104,4 +104,3 @@ fi
 log "INFO" "colorHandler.sh" "Colors loaded (${Sett[Color]})"
 RL_START=$'\001'
 RL_END=$'\002'
-log "DEBUG" "colorHandler.sh" "Finished loading colors"
