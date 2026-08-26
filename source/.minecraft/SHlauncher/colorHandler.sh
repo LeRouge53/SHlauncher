@@ -1,7 +1,7 @@
 # shellcheck disable=SC2034
 # shellcheck disable=SC2154
 log "INFO" "colorHandler.sh" "Started loading colors"
-if $color; then
+if $color; then # if color=false, (NO_COLOR variable, don't use any ANSI escape codes)
 	if [ "${Sett[Color]}" = "use24bit" ] || $force_color; then
 		RED=$'\033[38;2;255;20;9m'
 		RED_BOLD=${RED}$'\033[1m'

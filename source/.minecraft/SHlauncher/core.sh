@@ -6,7 +6,7 @@ cd "$SHdir/commands" || "$SHdir/crashHandler.sh" CD_FAIL
 
 columnNumber="$(tput cols)"
 [ "$?" -eq 127 ] && {
-  log "ERROR" "core.sh" "Failed to check terminal size, \"tput\" command not found"
+  log "ERROR" "core.sh" "Failed to check terminal size, \"tput\" command not found" # only made that because I tried to run the launcher on termux (it doesn't have tput)
 }
 if [ -n "$columnNumber" ] && [ "$columnNumber" -lt 150 ]; then
 	log "WARN" "core.sh" "Bad terminal size detected, $columnNumber columns may be too small"
@@ -17,6 +17,7 @@ if [ -n "$columnNumber" ] && [ "$columnNumber" -lt 150 ]; then
 fi
 
 log "DEBUG" "core.sh" "Started loading display profile"
+# alot of chaos there, but it sets colors in the prompt string based on the profile
 if [ "${Sett[SelectedProfile]}" == "None" ]; then
 	log "WARN" "core.sh" "Display profile was resolved to None"
 	DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
@@ -31,6 +32,7 @@ else
 fi
 
 log "DEBUG" "core.sh" "Started loading display instance"
+# same but for the instance
 if [ "${Sett[SelectedInstance]}" == "None" ]; then 
 	DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	log "WARN" "core.sh" "Display instance was resolved to None"
@@ -45,11 +47,11 @@ while true; do
 	cd "$SHdir/commands" || source "$SHdir/crashHandler.sh" CD_FAIL
 	IFS=$IFSBak
 	log "INFO" "core.sh" "Displaying shell"
-	read -erp "SHlauncher ${DispProf}:${DispInst}> " commandLine
+	read -erp "SHlauncher ${DispProf}:${DispInst}> " commandLine # command prompt
 	commandLine="${commandLine%$'\r'}"
 	log "DEBUG" "core.sh" "Command line is \"$commandLine\""
 	if [[ "$commandLine" =~ [\;\&\|\>\<\`\$\(\)\*] ]] && $cip; then
-		log "ERROR" "core.sh" "Caught special characters by CIP command injection protection"
+		log "ERROR" "core.sh" "Caught special characters (command injection protection)"
 		printf "${RED_BOLD}Command injection protection is active, usage of special characters \" ;  &  |  >  <  \`  $  (  ) * \" is forbidden${RESET}\n"
 		continue
 	fi

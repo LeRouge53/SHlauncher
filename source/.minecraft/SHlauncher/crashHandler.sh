@@ -8,7 +8,9 @@ function terminate() {
 	history -r
 	set +x
 }
-log "FATAL" "crashHandler.sh" "crashHandler called with code $1"
+if type log &>/dev/null; then
+	log "FATAL" "crashHandler.sh" "crashHandler called with code $1"
+fi
 printf "${RED}SHlauncher has crashed! :${RESET}\n"
 case $1 in 
 	"CD_FAIL")
@@ -32,7 +34,7 @@ case $1 in
 	"WSL")
 		echo " The launcher is currently being run on a Windows Substitute for Linux (WSL) operating system"
 		echo " - This script is NOT compatible with WSL."
-		echo " - Use git bash for Windows or a genuine linux distribution with the linux version of the script instead"
+		echo " - Use the MSYS2 environment for Windows or a genuine linux distribution instead"
 		terminate
 		exit 4
 	;;
