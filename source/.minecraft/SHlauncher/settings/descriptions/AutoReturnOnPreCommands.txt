@@ -1,0 +1,3 @@
+Automatically quit the launcher after executing the command provided when starting it
+
+If set to false, the "ror" command will be required to quit the script automatically

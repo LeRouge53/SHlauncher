@@ -359,7 +359,7 @@ MigrationBackup/
 # End of https://www.toptal.com/developers/gitignore/api/vs
 
 .vscode/
-*.txt
+/*.txt
 *.code-workspace
 
 # For the launcher (does not include game and generated files)
@@ -368,13 +368,9 @@ source/.minecraft/*
 
 source/.minecraft/SHlauncher/*
 !source/.minecraft/SHlauncher/*.sh
-!source/.minecraft/SHlauncher/changelog.txt
+!source/.minecraft/SHlauncher/*.txt
 !source/.minecraft/SHlauncher/commands/
 !source/.minecraft/SHlauncher/help/
-
 !source/.minecraft/SHlauncher/settings/
-source/.minecraft/SHlauncher/settings/*
-!source/.minecraft/SHlauncher/settings/data/
-!source/.minecraft/SHlauncher/settings/descriptions/
 
 source/.minecraft/SHlauncher/settings/data/user.json
