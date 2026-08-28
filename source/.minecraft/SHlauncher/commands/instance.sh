@@ -212,6 +212,7 @@ function argHandler() {
 		;;
 		*)
 			printf "${RED_BOLD}Unknown argument : %s${RESET}\n" "$1"
+			return 2
 	esac
 }
 

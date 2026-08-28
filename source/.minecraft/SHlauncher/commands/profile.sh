@@ -7,10 +7,11 @@ function UUIDcalc() {
 }
 function trimmedUUIDcalc() {
 	uuid=$(echo -n "OfflinePlayer:${1}" | md5sum | cut -d' ' -f1) #majik(1)
-	echo "$uuid"
+	echo "$uuid" # idrk why I needed 2 functions but that's an issue I will fix later 
 }
 
 function SetColor() {
+	# still the same stuffs from core.sh at line 20
 	if [ "${Sett[SelectedProfile]}" == "None" ]; then \
 		DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
 		return

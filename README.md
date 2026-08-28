@@ -31,8 +31,6 @@ This list is sorted in the order in which I would like to create them
 
 - **Changelog** : make a changelog page
 
-- **Return on return** : I want to make a command that shut down the launcher after executing another command
-
 - **Config** : a `config` command that would allow to modify the instances without editing json (also better instance system)
 
 - **Server support** : Yes, the launcher doesn't support servers yet

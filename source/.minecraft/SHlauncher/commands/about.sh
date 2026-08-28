@@ -48,6 +48,7 @@ The available command are :
 		- ${WHITE_BOLD}exit ${RESET}: shut down the launcher
 	- ${CYAN_BOLD}Others : 
 		- ${WHITE_BOLD}clear ${RESET}: clear the terminal
+		- ${WHITE_BOLD}ror ${RESET}: (for return on return). Execute one last command and exit the launcher
 		- ${WHITE_BOLD}reset ${RESET}: reset the launcher (closes and open back the launcher).
 		- ${WHITE_BOLD}echo ${RESET}: Display the provided argument to the screen (like the bash counterpart)
 		- ${WHITE_BOLD}log ${RESET}: add a message in the log file (at "<SHlauncher directory>/SHlog.log")
@@ -162,6 +163,22 @@ function testColor() {
 	printf "${WHITE_UNDER}WHITE_UNDER${RESET}\n"
 }
 
+function whatsNew() {
+	cat "$SHdir/changelog.txt"
+	echo ""
+}
+
+function aboutLog() {
+	if [ -z "$EDITOR" ]; then
+		printf "${YELLOW}EDITOR variable not set! Using cat${RESET}\n"
+		log "WARN" "about.sh:aboutLog" "EDITOR variable not set, defaulting to cat"
+		cat "$SHlogFile"
+	else
+		log "DEBUG" "about.sh:aboutLog" "EDITOR variable set to $EDITOR"
+		${EDITOR}  "$SHlogFile"
+	fi
+}
+
 function helpPage() {
 	printf "${CYAN}Usage :${RESET} about [<instruction>]\n"
 	printf "A command that gives information about the launcher\n"
@@ -170,6 +187,8 @@ function helpPage() {
 	printf " - version: Show the version of the launcher\n"
 	printf " - about (or nothing): Show useful information and links\n"
 	printf " - help: Print this help\n"
+	printf " - whatsnew: Prints the launcher's local changelog"
+	printf ' - log: Display the log file in the user'\''s editor (require an exported $EDITOR variable)'
 }
 
 function argHandler() {
@@ -183,6 +202,12 @@ function argHandler() {
 	"test-color")
 		testColor
 	;;
+	"whatsnew")
+		whatsNew
+	;;
+	"log")
+		aboutLog
+	;;
 	"" | "about")
 		about
 	;;
@@ -191,6 +216,7 @@ function argHandler() {
 	;;
 	*)
 		printf "${RED_BOLD}Unknown argument : %s${RESET}\n" "$1"
+		return 2
 	esac
 }
 

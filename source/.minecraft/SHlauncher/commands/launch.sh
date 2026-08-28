@@ -205,6 +205,7 @@ function argHandler() {
 		;;
 		*)
 			echo "Unknown argument : $1"
+			return 2
 	esac
 }
 

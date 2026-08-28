@@ -368,10 +368,11 @@ source/.minecraft/*
 
 source/.minecraft/SHlauncher/*
 !source/.minecraft/SHlauncher/*.sh
+!source/.minecraft/SHlauncher/changelog.txt
 !source/.minecraft/SHlauncher/commands/
 !source/.minecraft/SHlauncher/help/
-!source/.minecraft/SHlauncher/settings/
 
+!source/.minecraft/SHlauncher/settings/
 source/.minecraft/SHlauncher/settings/*
 !source/.minecraft/SHlauncher/settings/data/
 !source/.minecraft/SHlauncher/settings/descriptions/

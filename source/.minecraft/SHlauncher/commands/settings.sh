@@ -42,6 +42,7 @@ function fetch() {
 		"boolean")
 			printf "${CYAN}Display name:${RESET} %s\n" "$displayName"
 			printf "${CYAN}Setting ID:${RESET} %s\n" "$settingId"
+			printf "${CYAN}Setting type:${RESET} %s\n" "$type"
 			printf "${CYAN}Value:${RESET} %s\n" "$value"
 			printf "${CYAN}Default value:${RESET} %s\n" "$default"
 			echo ""
@@ -237,8 +238,8 @@ function edit() {
 			newValue=${newValue//"yes"/"true"}
 			newValue=${newValue//"no"/"false"}
 			if [ "$newValue" != "true" ] && [ "$newValue" != "false" ]; then
-				printf "Failed to apply the changes: this setting require a boolean value (true or false, yes or no)${RESET}\n"
-				log "ERROR" "settings.sh:edit" "Check failed, invalid value"
+				printf "${RED_BOLD}Failed to apply the changes: this setting require a boolean value (true or false, yes or no)${RESET}\n"
+				log "ERROR" "settings.sh:edit" "Check failed, invalid value : received \"$newValue\" instead of \"true\" or \"false\""
 				return 2
 			fi
 		;;
@@ -248,11 +249,11 @@ function edit() {
 			step=$(jq -r ".settings.$settingId.step"  "data/system.json")
 			if [[ "${newValue}" =~ [^0-9\.] ]]; then
 				printf "${RED_BOLD}Failed to apply the changes: this setting require a number${RESET}\n"
-				log "ERROR" "settings.sh:edit" "Check failed, invalid value"
+				log "ERROR" "settings.sh:edit" "Check failed, invalid value : received value \"$newValue\" which is not a number"
 				return 2
 			elif awk "BEGIN {exit !($newValue > $max)}" || awk "BEGIN {exit !($newValue < $min)}"; then
 				printf "${RED_BOLD}Failed to apply the changes: this setting is not contained between the minimum \"%s\" and the maximum \"%s\"${RESET}\n" "$min" "$max"
-				log "ERROR" "settings.sh:edit" "Check failed, new value not contained between \"%s\" and \"%s\"" "$min" "$max"
+				log "ERROR" "settings.sh:edit" "Check failed, new value isn't contained between \"%s\" and \"%s\"" "$min" "$max"
 				return 2
 			elif [[ "$(awk "BEGIN {print ($newValue + $step)}")" =~ \. ]]; then
 				printf "${RED_BOLD}Failed to apply the changes: the number doesn't respect the step \"%s\"${RESET}\n" "$step"
@@ -261,7 +262,7 @@ function edit() {
 			fi
 		;;
 		"string")
-			true # il n'y a aucune vérification si le type est un string
+			true # no check if it's a string; it can be anything
 		;;
 		"enum")
 			isDone=false
@@ -455,7 +456,7 @@ function argHandler() {
 		;;
 		*)
 			printf "${RED_BOLD}Unknown argument %s${RESET}\n" "$1"
-			return 1
+			return 2
 	esac
 }
 # shellcheck disable=SC2154

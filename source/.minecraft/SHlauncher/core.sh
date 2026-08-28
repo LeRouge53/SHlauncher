@@ -1,5 +1,4 @@
 # shellcheck disable=SC2154
-
 log "DEBUG" "core.sh" "Core.sh successfully called. Starting..."
 
 cd "$SHdir/commands" || "$SHdir/crashHandler.sh" CD_FAIL
@@ -42,96 +41,175 @@ else
 fi
 
 lastCommandLine=""
-log "INFO" "core.sh" "Entering shell loop!"
-while true; do
-	cd "$SHdir/commands" || source "$SHdir/crashHandler.sh" CD_FAIL
-	IFS=$IFSBak
-	log "INFO" "core.sh" "Displaying shell"
-	read -erp "SHlauncher ${DispProf}:${DispInst}> " commandLine # command prompt
-	commandLine="${commandLine%$'\r'}"
-	log "DEBUG" "core.sh" "Command line is \"$commandLine\""
-	if [[ "$commandLine" =~ [\;\&\|\>\<\`\$\(\)\*] ]] && $cip; then
-		log "ERROR" "core.sh" "Caught special characters (command injection protection)"
-		printf "${RED_BOLD}Command injection protection is active, usage of special characters \" ;  &  |  >  <  \`  $  (  ) * \" is forbidden${RESET}\n"
-		continue
+declare -g cmdExitCode
+cmdExitCode=0
+cmdDir="$SHdir/commands"
+
+function commandLineHandler() {
+	if [ -z "$*" ]; then
+		printf "${YELLOW_BOLD}[BUG]${YELLOW} Function commandLineHandler require 1 arguments but it is missing! Check the log file for more info${RESET}\n"
+		log "ERROR" "core.sh:commandLineHandler" "BUG : Some argument are missing. Expected argument: commandLine \"$commandLine\""
 	fi
-	if [ "$commandLine" != "" ] || [ "$lastCommandLine" != "$commandLine" ]; then
-		history -s "$commandLine"
+	if [ "$*" != "" ] || [ "$lastCommandLine" != "$*" ]; then
+		history -s -- "$*"
 	fi
-	lastCommandLine=$commandLine
-	# shellcheck disable=SC2086
-	set -- $commandLine
+	lastCommandLine="$*"
 	cmd=$1
 	shift
+
 	case "$cmd" in
-		"exit")
-			history -w
-			history -c
-			HISTFILE="$HOME/.bash_history"
-			history -r
-			set +x
-			exit 0
-		;;
-		"profile" | "profiles")
-			# shellcheck source=commands/profile.sh
-			source ./profile.sh "$@"
-		;;
-		"version" | "versions")
-			# shellcheck source=commands/version.sh
-			source ./version.sh "$@"
-		;;
-		"instance" | "instances")
-			# shellcheck source=commands/instance.sh
-			source ./instance.sh "$@"
-		;;
-		"java")
-			# shellcheck source=commands/java.sh
-			source ./java.sh "$@"
-		;;
-		"launch")
-			# shellcheck source=commands/launch.sh
-			source ./launch.sh "$@"
-		;;
-		"opendir")
-			# shellcheck source=commands/opendir.sh
-			source ./opendir.sh "$@"
-		;;
-		"settings" | "sett")
-			# shellcheck source=commands/settings.sh
-			source ./settings.sh "$@"
-		;;
-		"about")
-			# shellcheck source=commands/about.sh
-			source ./about.sh "$@"
-		;;
-		"help")
-			# shellcheck source=commands/about.sh
-			source ./about.sh "get-started"
-		;;
-		"reset")
-			# shellcheck disable=SC2164
-			cd "$dir/"
-			history -w
-			set +x
-			exec ./init.sh "$@"
-		;;
-		"clear")
-			clear
-		;;
-		"echo")
-			echo "$@"
-		;;
-		"log")
-			logLevel=$1
-			source=$2
-			shift 2
-			log "$logLevel" "$source" "$*"
-		;;
-		"")
-			true
-		;;
-		*)
-			echo "Unknown command: $cmd"
-      log "ERROR" "core.sh" "Command not found : \"$cmd\""
+	"exit")
+		history -w
+		history -c
+		HISTFILE="$HOME/.bash_history"
+		history -r
+		set +x
+		exit 0
+	;;
+	"profile" | "profiles")
+		# shellcheck source=commands/profile.sh
+		source "$cmdDir/profile.sh" "$@"
+		cmdExitCode=$?
+	;;
+	"version" | "versions")
+		# shellcheck source=commands/version.sh
+		source "$cmdDir/version.sh" "$@"
+		cmdExitCode=$?
+	;;
+	"instance" | "instances")
+		# shellcheck source=commands/instance.sh
+		source "$cmdDir/instance.sh" "$@"
+		cmdExitCode=$?
+	;;
+	"java")
+		# shellcheck source=commands/java.sh
+		source "$cmdDir/java.sh" "$@"
+		cmdExitCode=$?
+	;;
+	"launch")
+		# shellcheck source=commands/launch.sh
+		source "$cmdDir/launch.sh" "$@"
+		cmdExitCode=$?
+	;;
+	"opendir")
+		# shellcheck source=commands/opendir.sh
+		source "$cmdDir/opendir.sh" "$@"
+		cmdExitCode=$?
+	;;
+	"settings" | "setting")
+		# shellcheck source=commands/settings.sh
+		source "$cmdDir/settings.sh" "$@"
+		cmdExitCode=$?
+	;;
+	"about")
+		# shellcheck source=commands/about.sh
+		source "$cmdDir/about.sh" "$@"
+		cmdExitCode=$?
+	;;
+	"ror")
+		case "$1" in
+			"ror")
+				log "ERROR" "ror.sh" "command is Return on return, can't operate"
+				printf "${RED_BOLD}Please don't use the return on return command with itself"
+				return 2
+			;;
+			"help")
+				printf "${CYAN}Usage :${RESET} ror <command>\n"
+				printf "Executes the provided command and exit the launcher afterwards\n"
+				printf "to actually use help as a command, enter \"\\help\"\n"
+				return
+			;;
+			'\help')
+				commandLineHandler "help"
+			;;
+			"")
+				printf "${RED_BOLD}A command is required, type \"ror help\""
+			;;
+			*)
+				commandLineHandler "$@"
+		esac
+
+		history -w
+		history -c
+		HISTFILE="$HOME/.bash_history"
+		history -r
+		set +x
+		exit "$cmdExitCode"
+	;;
+	"help")
+		# shellcheck source=commands/about.sh
+		source "$cmdDir/about.sh" "get-started"
+		cmdExitCode=$?
+	;;
+	"reset")
+		# shellcheck disable=SC2164
+		cd "$dir/"
+		history -w
+		set +x
+		exec ./init.sh "$@"
+	;;
+	"clear")
+		clear
+	;;
+	"echo")
+		echo "$@"
+	;;
+	"log")
+		logLevel=$1
+		source=$2
+		shift 2
+		log "$logLevel" "$source" "$*"
+		cmdExitCode=$?
+	;;
+	"")
+		true
+	;;
+	*)
+		echo "Unknown command: $cmd"
+		log "ERROR" "core.sh" "Command not found : \"$cmd\""
+		cmdExitCode=2
 	esac
+}
+
+function launchCommand() {
+	if [ -z "$*" ]; then
+		printf "${YELLOW_BOLD}[BUG]${YELLOW} Function launchCommand require 1 arguments but it is missing! Check the log file for more info${RESET}\n"
+		log "ERROR" "core.sh:launchCommand" "BUG : Some argument are missing. Expected argument: commandLine \"$*\""
+		return 1
+	fi
+
+	log "DEBUG" "core.sh" "Command line is \"$*\""
+	if $cip && [[ "$*" =~ [\;\&\|\>\<\`\$\(\)\*] ]]; then # command injection protection
+		log "ERROR" "core.sh" "Caught special characters (command injection protection)"
+		printf "${RED_BOLD}Command injection protection is active, usage of special characters \" ;  &  |  >  <  \`  $  (  ) * \" is forbidden${RESET}\n"
+		cmdExitCode=1
+		return
+	fi
+	commandLineHandler "$@"
+}
+[ -n "$*" ] && {
+	log "INFO" "core.sh" "Found command \"$*\" to execute"
+	launchCommand "$@" # if there is any, execute the command provided by init.sh
+	if ${Sett[AutoReturnOnPreCommands]}; then
+		history -w
+		history -c
+		HISTFILE="$HOME/.bash_history"
+		history -r
+		set +x
+		exit "$cmdExitCode"
+	fi
+}
+log "INFO" "core.sh" "Entering shell loop!"
+while true; do
+	IFS=$IFSBak
+	if [ "$cmdExitCode" -ne 0 ]; then # command exit code handling
+		dispExitCode="${RL_START}${RED}${RL_END}${cmdExitCode}${RL_START}${RESET}${RL_END}|"
+	else
+		dispExitCode=""
+	fi
+
+	log "INFO" "core.sh" "Displaying shell"
+	read -erp "${dispExitCode}SHlauncher ${DispProf}:${DispInst}> " commandLine # command prompt
+	# shellcheck disable=SC2086
+	launchCommand $commandLine
 done

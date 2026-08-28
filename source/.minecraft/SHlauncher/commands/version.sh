@@ -1300,9 +1300,11 @@ function Main() {
 		;;
 		"")
 			printf "${RED_BOLD}Require an argument, type \"version help\"${RESET}\n"
+			return 2
 		;;
 		*)
 			printf "${RED_BOLD}Unknown argument : $1${RESET}\n"
+			return 2
 	esac
 }
 
@@ -1345,7 +1347,7 @@ case $modloader in
 	;;
 	*)
 		printf "${RED}Unknown modloader, the supported modloaders are Vanilla, Forge, Fabric, Neoforge and Quilt${RESET}\n"
-		return 1
+		return 2
 esac
 
 log "INFO" "version.sh" "version.sh called with instructions ${instructions[*]}"

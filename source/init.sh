@@ -13,7 +13,7 @@ function log() {
 	local source=$2
 	shift 2
 	local msg="$*"
-	case "" in # check if any arguments are empty, throws an error if yes
+	case "" in # check if any arguments is empty, throws an error if yes
 		"$level" | "$source")
 			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function log require 2 arguments but some are missing! Check the log file for more info${RESET}\n"
 			log "ERROR" "init.sh:log" "BUG : Some argument are missing. Expected argument: level \"$level\", source \"$source\""
@@ -55,7 +55,7 @@ function log() {
 }
 exec 3>&1 # create file descriptor 3 (used to capture stderr only in exceptionCatch)
 function exceptionCatch(){
-	local source=$1 # source script (used for logging). Other arguments is the command to execute
+	local source=$1 # source script (used for logging). Other arguments are the content the command to execute
 	shift
 	if [[ -z $source || $# -eq 0 ]]; then
 		printf '%b\n' "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function exceptionCatch requires 2 arguments, but some are missing! Check the log file for more info\n" >&2
@@ -93,66 +93,64 @@ portable=false
 cip=true
 
 SHlname="SHlauncherBE"
-SHlvers="0.4.0" # edit version here
+SHlvers="0.4.1" # edit version here
 
 IFSBak=$' \t\n'
 
-function argHandler() {
-	# finally treating arguments
+while true; do
+	# argHandler
 	case $1 in
 		"-v" | "--version")
-			echo "$SHlname, version $SHlvers"
+			echo "$SHlname, version $SHlvers" >&2
 			exit
 		;;
 		"-p" | "--portable")
 			portable=true # use embedded jq if the user provided the binary
 			shift
-			argHandler "$@"
 		;;
 		"-V" | "--verbose")
 			verbose=true # display logs on the screen
 			shift
-			argHandler "$@"
 		;;
 		"--debug")
 			debug=true # allow debug log lines to be written (does not come with verbose mode)
 			shift
-			argHandler "$@"
 		;;
 		"--trace")
 			trace=true # set -x
 			shift
-			argHandler "$@"
 		;;
 		"--nocip")
 			# shellcheck disable=SC2034
 			cip=false # allow to write special characters like " $ ( ) ` "
 			shift
-			argHandler "$@"
 		;;
 		"--SHlname")
 			export SHlname="$2" # custom launcher name, used to display and as JVM arg
 			shift 2
-			argHandler "$@"
 		;;
 		"--SHlvers")
 			export SHlvers="$2" # custom launcher version, also used when launching game
 			shift 2
-			argHandler "$@"
 		;;
 		"--clear-manifest")
 			command -p rm -r "$SHdir/manifests/" 2>/dev/null # removes every manifest
 			log "INFO" "init.sh:argHandler" "Manifest cleared with errcode $?"
+			shift
+		;;
+		--* | -*)
+			printf "Unknown parameter %s\n" "$1"
+			exit 2
 		;;
 		"")
-			true # do nothing and continue normally...
+			break
 		;;
 		*)
-			echo "Unknown argument : $1" # otherwise crash
-			exit 2
+			log "INFO" "init.sh:argHandler" "Found command $* that will be executed later" # the rest is passed to core.sh
+			break
 	esac
-}
-argHandler "$@"
+done
+
 
 command -p rm "$SHlogFile" &>/dev/null
 log "DEBUG" "init.sh" "Core directory resolved to $dir"
@@ -407,7 +405,7 @@ if $onlineMode; then
 	if curl -so manifests/temp_manifest.xml https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml; then
 		readarray -t NeoVersions < <(grep -oP '(?<=<version>).*?(?=</version>)' manifests/temp_manifest.xml)
 		# shellcheck disable=SC2207
-		IFS=$'\n' NeoVersions=($(sort <<<"${NeoVersions[*]}"))
+		IFS=$'\n' NeoVersions=($( sort <<<"${NeoVersions[*]}")); IFS=$IFSBak # I cried at my computer for 40 minutes trying to understand why my splitting was so weird. All because a temporary variable modification wasn't that temporary (I hate myself)
 		printf '%s\n' "${NeoVersions[@]}" | jq -Rs 'split("\n")[:-1]' \
 			> manifests/neoforge_version_manifest.json
 	else
@@ -451,5 +449,5 @@ history -c
 history -r
 log "INFO" "init.sh" "SHlauncher startup process completed, switching to core.sh"
 # shellcheck source=.minecraft/SHlauncher/core.sh
-source "$SHdir/core.sh"
+source "$SHdir/core.sh" "$@"
 exit

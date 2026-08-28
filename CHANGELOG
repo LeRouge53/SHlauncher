@@ -1,0 +1,8 @@
+This is the global changelog, which lists every version (starting from 0.4.1)
+======== 0.4.1 ========
+ - Added this changelog file (can be viewed with command "about whatsnew")
+ - Added return on return command (which terminate the launcher after executing a last command)
+ - Added a lot of other argument-based features (like the ability to launch commands directly from bash) and a setting linked to those
+ - Added a way to view the log file directly in the launcher ("about log" command)
+ - Fixed bugs (kinda)
+ - Did not added comments in version.sh

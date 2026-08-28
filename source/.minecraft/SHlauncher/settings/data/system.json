@@ -46,6 +46,13 @@
             "isProtected": false,
             "default": true
         },
+        "AutoReturnOnPreCommands": {
+            "displayName": "Stop after running a Pre-shell command",
+            "type": "boolean",
+            "description": "descriptions/AutoReturnOnPreCommands.txt",
+            "isProtected": false,
+            "default": true
+        },
         "SelectedProfile": {
             "displayName": "Selected profile",
             "type": "string",

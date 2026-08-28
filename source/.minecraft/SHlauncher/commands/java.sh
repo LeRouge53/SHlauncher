@@ -144,6 +144,7 @@ function argHandler() {
 		;;
 		*)
 			printf "${RED_BOLD}Unrecognized option: %s${RESET}\n" "$1"
+			return 2
 	esac
 }
 # shellcheck disable=SC2154
