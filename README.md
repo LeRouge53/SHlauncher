@@ -29,8 +29,6 @@ Please note that the launcher is not POSIX-compliant and only support bash. This
 
 This list is sorted in the order in which I would like to create them
 
-- **Changelog** : make a changelog page
-
 - **Config** : a `config` command that would allow to modify the instances without editing json (also better instance system)
 
 - **Server support** : Yes, the launcher doesn't support servers yet
