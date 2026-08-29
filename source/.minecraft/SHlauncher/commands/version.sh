@@ -522,18 +522,23 @@ function install() {
 
 			client="libraries/${procArgs[$newIndex]}"
 
+			# the following section is used to clean the classpath from things that are already in the module path
+			# if elements from the module path gets into the classpath, we get a weird crash when launching
+			
 			local tempArgs
 			mapfile -t tempArgs < <(jq -r '.arguments.jvm[]' "$versionJson")
 			for (( i=0; i<${#tempArgs[@]}; i++ )); do
+				# find the module path
 				if [ "${tempArgs[i]}" == "-p" ]; then
-					newIndex=$((i+1))
+					newIndex=$((i+1)) # take it
 					break
 				fi
 			done
-			tempArgs[newIndex]=${tempArgs[newIndex]//'${library_directory}'/"libraries"}
+			tempArgs[newIndex]=${tempArgs[newIndex]//'${library_directory}'/"libraries"} # parse it
 			tempArgs[newIndex]=${tempArgs[newIndex]//'${classpath_separator}'/"${cmdSeparator}"}
-			mapfile -td "${cmdSeparator}" CPInAnArray <<< "$classpath"
-			mapfile -td "${cmdSeparator}" delete <<< "${tempArgs[$newIndex]}"
+			mapfile -td "${cmdSeparator}" CPInAnArray < <(printf '%s' "$classpath")
+			mapfile -td "${cmdSeparator}" delete < <(printf '%s' "${tempArgs[$newIndex]}") # and use it to clean the classpath
+
 			delete+=("versions/$inheritedVers/$inheritedVers.jar")
 			for target in "${delete[@]}"; do
 				for (( i=0; i<${#CPInAnArray[@]}; i++ )); do
@@ -542,6 +547,7 @@ function install() {
 					fi
 				done
 			done
+			# now rebuild it and clean the empty spots
 			local new=()
 			for e in "${CPInAnArray[@]}"; do
 				[[ -n "$e" ]] && new+=("$e")
@@ -905,8 +911,6 @@ function install() {
 			}' > "$SHdir/versions/$targetVers.json"
 		;;
 		"neoforge")
-			echo "$gameArgsJson"
-			echo "$jvmArgsJson"
 			jq -n \
 			--arg name "$fullModLoaderVers" \
 			--arg inheritFrom "$inheritedVers" \
@@ -1273,7 +1277,7 @@ function helpPage() {
 	printf "       - b4 | b4release : Prints every alpha and beta version\n"
 	printf "       - all : Prints every (snapshot, alpha and beta included) version\n"
 	printf "       - installed : Prints every version that are currently installed\n"
-	printf "       - loader <minecraft version>: (for fabric only), shows every loader version avaiable for the specified minecraft version\n"
+	printf "       - loader <minecraft version>: (for fabric only), shows every loader version available for the specified minecraft version\n"
 	printf " - install [-m] <vanilla version> [<modloader version>] : Install the specified version (some version might not be supported)\n"
 	printf " - remove [-m] <vanilla version> [<modloader version>] : Remove the specified version. This instruction is quite inefficient.\n"
 	printf " - help : Print this help\n"

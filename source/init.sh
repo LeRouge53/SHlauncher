@@ -162,6 +162,30 @@ case "$OSTYPE" in
 	*)                     osName="unknown"; cmdSeparator=':' ;;
 esac
 
+onlineMode=true
+if [ "$osName" = "windows" ]; then
+	/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null # idk why msys2 doesn't have ping, so I need to use the windows one
+	pingExitCode=$?
+elif [ "$osName" != "unknown" ]; then
+	ping -c 1 -W 3 google.com &>/dev/null
+	pingExitCode=$?
+else
+  log "WARN" "init.sh" "Unknown operating system, ping feature may not work" # a lot of things may not work
+  ping -c 1 -W 3 google.com &>/dev/null
+  pingExitCode=$?
+fi
+
+if [ "$pingExitCode" != 0 ] && [ "$pingExitCode"  != 127 ]; then
+	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
+	printf "${RED}This launcher requires an Internet connection for almost everything, an offline mode exist but is very limited.\n"
+	printf "Restart or reset the launcher to switch back to Online mode${RESET}\n"
+	onlineMode=false
+elif [ "$pingExitCode" = 127 ]; then
+	log "WARN" "init.sh" "Can't ping, \"ping\" command not found" # keep online mode anyway
+fi
+
+export onlineMode
+
 log "INFO" "init.sh" "Resolved operating system to $osName"
 
 log "INFO" "init.sh" "Starting $SHlname, version $SHlvers, debug mode: $debug, verbose mode: $verbose, cip: $cip, portable mode: $portable"
@@ -185,7 +209,7 @@ if $portable; then
 		log "ERROR" "init.sh" "No JQ binary provided, ignoring portable mode"
 	fi
 fi
-
+# Checking dependencies
 if ! jq --version &>/dev/null; then
 	log "FATAL" "init.sh" "JQ was not found in the PATH, crash imminent"
 	MissingDependencies+=("jq")
@@ -307,11 +331,9 @@ cd "$SHdir" || source "$SHdir/crashHandler.sh" "CD_FAIL"
 
 $cip || printf "${RED_BOLD} Command injection protection is disabled, DO NOT execute commands that could lead to arbitrary code execution\n"
 
-onlineMode=true
 printf "${GREEN_BOLD}SHlauncher started${RESET}\n"
-echo "Started resolving dependency"
 
-log "INFO" "init.sh" "SHlauncher initialization finished, checking internet and creating directories"
+log "INFO" "init.sh" "SHlauncher initialization finished, creating directories"
 
 mkdir -p "$MCdir/assets/indexes"
 mkdir -p "$MCdir/assets/objects"
@@ -324,30 +346,6 @@ mkdir -p "$SHdir/profiles"
 mkdir -p "$SHdir/instances"
 mkdir -p "$SHdir/manifests/fabric"
 
-if [ "$osName" = "windows" ]; then
-	/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null # idk why msys2 doesn't have ping, so I need to use the windows one
-	pingExitCode=$?
-elif [ "$osName" != "unknown" ]; then
-	ping -c 1 -W 3 google.com &>/dev/null
-	pingExitCode=$?
-else
-  log "WARN" "init.sh" "Unknown operating system, ping feature may not work" # a lot of things may not work
-  ping -c 1 -W 3 google.com &>/dev/null
-  pingExitCode=$?
-fi
-
-if [ "$pingExitCode" != 0 ] && [ "$pingExitCode"  != 127 ]; then
-	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
-	printf "${RED}This launcher requires an Internet connection for almost everything, an offline mode exist but is very limited.\n"
-	printf "Restart or reset the launcher to switch back to Online mode${RESET}\n"
-	onlineMode=false
-elif [ "$pingExitCode" = 127 ]; then
-	log "WARN" "init.sh" "Can't ping, \"ping\" command not found" # keep online mode anyway
-fi
-
-export onlineMode
-
-echo "Finished resolving dependencies"
 
 function mavenParser() {
 	local is=$1 # is for "input string"
@@ -391,7 +389,7 @@ function mavenParser() {
 	printf '%s' "${path%$'\r'}"
 }
 
-echo "Starting manifest check"
+echo "Downloading manifests"
 log "DEBUG" "init.sh" "Downloading manifests..."
 # manifest stuff
 if $onlineMode; then

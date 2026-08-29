@@ -194,7 +194,7 @@ function argHandler() {
 		"")
 			if ! $customLaunchProf; then launchProf=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json"); fi
 			if ! $customLaunchInst; then launchInst=${Sett[SelectedInstance]}; fi
-			if [ "${Sett[SelectedProfile]}" == "None" ] || [ "${Sett[SelectedInstance]}" == "None" ]; then
+			if [ "$launchProf" == "None" ] || [ "$launchInst" == "None" ]; then
 				printf "${RED_BOLD}The profile or the instance is missing, cannot launch${RESET}\n"
 				printf "${RED}Entered profile : %s\n" "$launchProf"
 				printf "Entered instance : %s${RESET}\n" "$launchInst"
