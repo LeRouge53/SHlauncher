@@ -6,3 +6,8 @@ This is the global changelog, which lists every version (starting from 0.4.1)
  - Added a way to view the log file directly in the launcher ("about log" command)
  - Fixed bugs (kinda)
  - Did not added comments in version.sh
+======== 0.4.2 ========
+ - Fixed a bug that broke neoforge during installation
+ - Added some comments
+ - The launcher nows check if it has internet BEFORE trying to use the internet
+ - Removed useless and out-of-context lines

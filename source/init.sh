@@ -93,7 +93,7 @@ portable=false
 cip=true
 
 SHlname="SHlauncherBE"
-SHlvers="0.4.1" # edit version here
+SHlvers="0.4.2" # edit version here
 
 IFSBak=$' \t\n'
 
