@@ -8,21 +8,21 @@ function fabricManifestDownloader() {
 	local noPrint=$3
 	log "DEBUG" "version.sh:fabricManifestDownloader" "starting with $gameVers $loaderVers"
 	if [ -z "$gameVers" ]; then
-		printf "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function fabricManifestDownloader require 2 arguments but some are missing! Check the log file for more info \n"
+		printf "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function fabricManifestDownloader require 2 arguments but some are missing! Check the log file for more info \n" >&2
 		log "ERROR" "version.sh:fabricManifestDownloader" "BUG : Some argument are missing. Expected argument: gameVers \"$gameVers\", loaderVers (optional) \"$loaderVers\""
 		return 2
 	fi
 	
 	case $noPrint in
-		true | false)
-			true
+		"true")
+			noPrint=true
 		;;
 		*)
-			false
+			noPrint=false
 	esac
 
 	if ! $onlineMode; then
-		$noPrint || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n"
+		$noPrint || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n" >&2
 		return 1
 	fi
 
@@ -32,7 +32,7 @@ function fabricManifestDownloader() {
 			cat "$SHdir/manifests/temp_manifest.json" > "$SHdir/manifests/fabric/$gameVers/$gameVers.json"
 		else
 			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch fabric compatibility for game version \"$gameVers\"; version is invalid or unsupported by fabric"
-			$noPrint || printf "${RED}The specified minecraft version ($gameVers) is invalid or not supported by fabric${RESET}\n"
+			$noPrint || printf "${RED}The specified minecraft version ($gameVers) is invalid or not supported by fabric${RESET}\n" >&2
 			return 1
 		fi
 	else
@@ -41,7 +41,7 @@ function fabricManifestDownloader() {
 			cat "$SHdir/manifests/temp_manifest.json" > "$MCdir/versions/fabric-$gameVers-$loaderVers/fabric-$gameVers-$loaderVers.json"
 		else
 			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch game version \"$gameVers\" with loader \"$loaderVers\"; version is invalid or unsupported by fabric"
-			$noPrint || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid or unsupported by fabric${RESET}\n"
+			$noPrint || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid or unsupported by fabric${RESET}\n" >&2
 			return 1
 		fi
 	fi
@@ -467,7 +467,11 @@ function install() {
 			log "INFO" "version.sh:install" "Requested download of version $targetVers $modlVers"
 			fullModLoaderVers="${targetVers}-${modlVers}"
 			versionJson="$versDir/fabric-$fullModLoaderVers/fabric-${fullModLoaderVers}.json"
-			fabricManifestDownloader "$targetVers" "$modlVers"
+			if ! fabricManifestDownloader "$targetVers" "$modlVers"; then
+				printf "${RED_BOLD}Failed to get the manifest, cannot continue installation${RESET}\n"
+				log "WARN" "version.sh:install" "cannot continue installation"
+				return 1
+			fi
 
 			inheritedVers=$(jq -r '.inheritsFrom' "$versionJson")
 			if ! [ -f "$versDir/$inheritedVers/$inheritedVers.jar" ]; then
@@ -552,7 +556,7 @@ function install() {
 			for e in "${CPInAnArray[@]}"; do
 				[[ -n "$e" ]] && new+=("$e")
 			done
-			IFS="${cmdSeparator}" classpath="${new[*]}"
+			IFS="${cmdSeparator}" classpath="${new[*]}"; IFS=$IFSBak
 			unset -v new
 			unset -v CPInAnArray
 			unset -v tempArgs
@@ -561,7 +565,7 @@ function install() {
 	"fabric")
 		log "INFO" "version.sh:install" "Installing game libraries..."
 		installFabricLib "$versionJson" "libraries"
-		classpath=$outputCp
+		classpath=$outputCp 
 		log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
 	esac
 

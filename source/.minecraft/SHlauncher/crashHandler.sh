@@ -14,7 +14,7 @@ fi
 printf "${RED}SHlauncher has crashed! :${RESET}\n"
 case $1 in 
 	"CD_FAIL")
-		# triggers if a directory change operation fails
+		# triggers if a cd command fails
 		echo " The launcher failed to start due to a working directory switch error."
 		echo " - It could be due to insufficient authorizations, an incomplete installation or issues with the disk."
 		terminate
@@ -31,8 +31,12 @@ case $1 in
 		# triggers if the script is launched with a posix shell
 		echo " The launcher is currently being run by an incompatible POSIX shell (like sh, ash or dash)"
 		echo " - Please use bash instead (or disable posix mode)"
-		terminate
 		exit 3
+	;;
+	"ZSH")
+		# triggers if the shell is launched with zsh
+		echo " The launcher is currently being run by ZSH, which is not supported, use bash instead"
+		exit 4
 	;;
 	"SETT_LOAD_FAIL")
 		# triggers if settings.sh fails to load the settings 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -o pipefail
 dir=$(dirname -- "$(readlink "$0")") # POSIX compliant dir discovery
 
@@ -6,6 +6,9 @@ dir=$(dirname -- "$(readlink "$0")") # POSIX compliant dir discovery
 if echo "$SHELLOPTS" | grep -q posix; then
 	# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
 	source "$dir/.minecraft/SHlauncher/crashHandler.sh" POSIX
+elif [ -n "$ZSH_VERSION" ]; then
+	# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
+	source "$dir/.minecraft/SHlauncher/crashHandler.sh" ZSH
 fi
 
 function log() {
@@ -226,12 +229,12 @@ declare -A declaredLongParam
 declare -A declaredShortParam
 function declareArgs() {
 	local long="$1" # foo (long parameter name)
-	local short="$2" # f (short parameter name linked to the long one)
-	local type="$3" # "value" or "flag"
+	local short="$2" # f (short parameter name linked to the long one). Is optional
+	local type="$3" # "value" or "flag" ; value : the user needs to enter a value with the parameter. flag : if the parameter is specified, switch the value to true 
 	case "" in
 		"$long" | "$short" | "$type")
 			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function declareArgs requires 3 arguments but some are missing! Check the log file for more info\n" >&2
-			log "ERROR" "init.sh:declareArgs" "BUG : Some argument are missing. Expected argument: long \"$long\", short \"$short\", type \"$type\""
+			log "ERROR" "init.sh:declareArgs" "BUG : Some argument are missing. Expected argument: long \"$long\", short \"$short\" (optional), type \"$type\""
 			return 2
 		;;
 		*)
@@ -240,7 +243,7 @@ function declareArgs() {
 
 	declaredLongParam["$long"]="$type"
 
-	if [ "$short" != "NoShort" ]; then
+	if [ "$short" != "NoShort" ] || [ -z "$short" ]; then
 		declaredShortParam["$short"]="$long"
 	fi
 	log "DEBUG" "init.sh:declareArgs" "Declared parameter \"$long\" with short \"$short\" and type \"$type\""
@@ -299,7 +302,7 @@ function writeSettingsValue() {
 	local value=$2 # value (can be empty)
   if [[ -z "$settingId" ]]; then
     log "ERROR" "init.sh:writeSettingsValue" "BUG : Some argument are missing, expected argument settingId : \"$settingId\", value (optional): \"$value\""
-    printf "${YELLOW_BOLD}[BUG]${YELLOW} Function writeSettingsValue requires 2 arguments but some are missing! Check the log file for more info\n" >&2
+    printf "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function writeSettingsValue requires 2 arguments but some are missing! Check the log file for more info\n" >&2
     return 2
   fi
 	tmp=$(mktemp)
@@ -317,7 +320,7 @@ if [ -n "$FORCE_COLOR" ]; then
 	force_color=true # force the use of the 24bit color system regardless of settings
 	log INFO "init.sh" "FORCE_COLOR recognized"
 elif [ -n "$NO_COLOR" ]; then
-	color=false
+	color=false # does not load any colors regardless of settings
 	log INFO "init.sh" "NO_COLOR recognized"
 else 
 	color=true

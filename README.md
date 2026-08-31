@@ -10,7 +10,7 @@ SHlauncher is still in early access, Everything shown here is subject to changes
 The launcher uses as a main dependency ([jq](https://github.com/jqlang/jq)) which IS required for the launcher to function properly. But to keep the portability, a binary can be provided (should be stored at ".minecraft/SHlauncher/jq/") and will be used when using the flag `--portable`
 
 Without counting jq, the launcher also relies on tools that are usually preinstalled, like `sha1sum` `curl` `unzip` `gz` `tar` `awk` etc...
-Please note that the launcher is not POSIX-compliant and only support bash. This script wasn't tested with zsh and does not support sh, ash, dash and fish
+Please note that the launcher is not POSIX-compliant and only support bash. It does not support zsh, sh, ash, dash and fish (all were tested)
 
 ## Features
 - **Colors** : The launcher uses by default the 24 bit color system, ensuring that every colors are displayed properly (it can be disabled or modified)
