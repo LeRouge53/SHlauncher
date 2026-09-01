@@ -1,0 +1,6 @@
+Defines the maximal amount of ram specified when and only when creating instances
+Modifying this settings will not modify the allocated ram on already created instances, use "instance modify MaxRam <value>" for that
+
+The value is not parsed and will be directly passed to java when launching the game using "-Xmx".
+Here is an online documentation to write "-Xms/-Xmx" here : 
+https://www.javaspring.net/blog/change-heap-size-java/#example-1-setting-the-initial-and-maximum-heap-size

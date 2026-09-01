@@ -11,3 +11,7 @@ This is the global changelog, which lists every version (starting from 0.4.1)
  - Added some comments
  - The launcher nows check if it has internet BEFORE trying to use the internet
  - Removed useless and out-of-context lines
+======== 0.4.3 ========
+ - Added the "config" command (in the form of "instance modify")
+ - Added default Minimum/Maximum ram assigned when creating instances (via setting keys)
+ - Fixed minor bugs and typos

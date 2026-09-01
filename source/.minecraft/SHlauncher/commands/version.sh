@@ -387,7 +387,7 @@ function install() {
 				fi
 			done
 			if ! $isDone; then
-				printf "${RED_BOLD}At least one java version is required to run the processors install any and retry${RESET}\n"
+				printf "${RED_BOLD}At least one java version is required to run the processors. Install any and retry${RESET}\n"
 				log "ERROR" "version.sh:install" "Install aborted, no java version are installed to run the processors"
 				return 1
 			fi

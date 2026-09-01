@@ -1,10 +1,10 @@
 # shellcheck disable=SC2154
 
 function list() {
-	if [ "$(ls)" == "" ]; then # give me a better solution..
+	if [ "$(ls "$SHdir/instances")" == "" ]; then # give me a better solution..
 		printf "${YELLOW}No Instances were set up (yet!)${RESET}\n"
 	else
-		for Finst in *.json; do
+		for Finst in "$SHdir"/instances/*.json; do
 			log "DEBUG" "settings.sh:list" "Checking instance \"${Finst}\""
 			# jq mess to get every displayed info
 			IFS='|' read -r name version modloader gameDir java MinRam MaxRam modloaderVersion <<< \
@@ -13,14 +13,14 @@ function list() {
 			mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
 
 			printf "${BLUE}%s :${RESET}\n" "$name"
-			echo " - Version: $version" 
-			echo " - Modloader: $modloader $modloaderVersion"
-			echo " - Game directory: $gameDir"
-			echo " - Java: $java"
-			echo " - Minimal amount of RAM (-Xms): $MinRam"
-			echo " - Maximal amount of RAM (-Xmx): $MaxRam"
-			echo " - Additional JVM arguments : " "${additionalJvmArgs[@]}"
-			echo " - Additional game arguments : " "${customGameArgs[@]}"
+			echo " - Version (version): $version" 
+			echo " - Modloader (modloader - modloaderVersion): $modloader $modloaderVersion"
+			echo " - Game directory (gameDir): $gameDir"
+			echo " - Java (java): $java"
+			echo " - Minimal amount of RAM (MinRam): $MinRam"
+			echo " - Maximal amount of RAM (MaxRam): $MaxRam"
+			echo " - Additional JVM arguments (additionalJvmArgs): %s" "${additionalJvmArgs[@]}"
+			echo " - Additional game arguments (customGameArgs): %s" "${customGameArgs[@]}"
 		done
 	fi
 }
@@ -46,7 +46,7 @@ function create() {
 		return 2
 	esac
 
-	if [[ -f "./$name.json" ]]; then # check if the instance already exist
+	if [[ -f "$SHdir/instances/$name.json" ]]; then # check if the instance already exist
 		printf "${RED_BOLD}The target instance already exist${RESET}\n"
 		return 1
 	fi
@@ -110,6 +110,7 @@ function create() {
 		gameDir="$MCdir/instances/$name/" # creates a directory based on the instance name
 		mkdir -p "$gameDir"
 	elif [[ -n "${parameter[customGameDir]}" ]]; then
+		mkdir -p "${parameter[customGameDir]}"
 		gameDir="${parameter[customGameDir]}" # creates a directory based on user input
 	else
 		gameDir="$MCdir" # if none are specified, just use .minecraft
@@ -123,8 +124,8 @@ function create() {
 		--arg gameDir "$gameDir" \
 		--arg assetsDir "$MCdir/assets" \
 		--arg java "default" \
-		--arg MinRam "2G" \
-		--arg MaxRam "4G" \
+		--arg MinRam "${Sett[DefaultMinimumRam]}" \
+		--arg MaxRam "${Sett[DefaultMaximumRam]}" \
 		--arg versionProfile "$versionProfile" \
 		'{
 			"name": $name,
@@ -140,13 +141,17 @@ function create() {
 			"additionalJvmArgs": [],
 			"customGameArgs": []
 		}' \
-		> "$name".json
+		> "$SHdir/instances/$name.json"
 }
 
 function sel() {
 	# check if the specified instance name is valid. If yes, write the setting key
 	name=$1
-	if ! [[ -f "$name.json" ]]; then echo "The selected Instance \"$name\" does not exist"; return 2; fi
+	[ -z "$name" ] && name=${parameter[useInstance]}
+	if ! [[ -f "$SHdir/instances/$name.json" ]]; then
+		printf "${RED_BOLD}The specified instance \"$name\" does not exist${RESET}\n"
+		return 2
+	fi
 	log "INFO" "instance.sh:sel" "New instance is \"$name\""
 	writeSettingsValue SelectedInstance "$name"
 	SetColor
@@ -154,9 +159,13 @@ function sel() {
 
 function delete() {
 	name=$1
-	if ! [[ -f "$name".json ]]; then echo "The selected Instance \"$name\" does not exist"; return 2; fi
+	[ -z "$name" ] && name=${parameter[useInstance]}
+	if ! [[ -f "$SHdir/instances/$name".json ]]; then
+		printf "${RED_BOLD}The specified Instance \"$name\" does not exist${RESET}\n"
+		return 2
+	fi
 	log "WARN" "instance.sh:delete" "Deleting instance $name"
-	command -p rm -- "$name.json"
+	command -p rm -- "$SHdir/instances/$name.json"
 	if [ "${Sett[SelectedInstance]}" == "$name" ]; then
 		writeSettingsValue SelectedInstance None
 	fi
@@ -170,38 +179,130 @@ function reset() {
 }
 
 function helpPage() {
-	printf "${CYAN}Usage${RESET} : instance [-c/-a] <instruction> [<args...>]\n"
+	printf "${CYAN}Usage${RESET} : instance [-cua] <instruction> [<args...>]\n"
 	printf "Manages the instances of the launcher\n"
 	printf "${CYAN}Argument list${RESET} :\n"
-	printf " - create [-c/-a] <instance name> <modloader name> <vanilla version> [<modloader version>] : Creates an instance\n"
-	printf " - remove <instance name> : Deletes an instance\n"
-	printf " - list : Lists every created instances\n"
-	printf " - select <instance name> : Select an instance to use\n"
+	printf " - create [-ca] <instance name> <modloader name> <vanilla version> [modloader version] : Creates an instance\n"
+	printf " - modify <-u> <parameter> <new value> : modifies an instance, uses the selected instance if none are specified\n"
+	printf " - remove [-u] OR <instance name> : Deletes an instance\n"
+	printf " - list : Lists every created instances alongside their parameter (display name and key). the key is used to modify the value with \"instance modify\"\n"
+	printf " - select [-u] OR <instance name> : Select an instance to use\n"
 	printf " - reset : Deselect the current instance (switching it to None)\n"
 	printf " - help : Prints this help\n"
 	printf " - \"-c\" | \"--customGameDir\" : (incompatible with -a) Sets the games directory to the specified one\n"
 	printf " - \"-a\" | \"--anotherGameDir\" : (incompatible with -c) Sets the games directory to a generated one\n"
+	printf " - \"-u\" | \"--useInstance\" : specifies the instance that will be tampered"
 }
 
+function modify() {
+	local targetInstance=${Sett[SelectedInstance]}
+	local setting=$1
+	local newValue=$2
+	[ "$targetInstance" = "None" ] && targetInstance=${parameter[useInstance]} # if it's empty, it will trow an error later, confusing but it works
+
+	# check if what the user entered is actually valid
+	if [ -z "$setting" ]; then
+		printf "${RED_BOLD}No key were specified! (use instance help)${RESET}\n"
+		log "ERROR" "instance.sh:modify" "Could not modify the specified instance, no key was specified"
+		return 2
+	elif [ -z "$targetInstance" ]; then
+		printf "${RED_BOLD}No instances were specified or selected! (type instance help)${RESET}\n"
+		log "ERROR" "instance.sh:modify" "Could not modify the specified instance, no instance was specified or selected"
+		return 2
+	elif ! [ -f "$SHdir/instances/$targetInstance.json" ]; then
+		printf "${RED_BOLD}The specified instance doesn't exist${RESET}\n"
+		log "ERROR" "instance.sh:modify" "Could not modify the specified instance, the said instance doesn't exist"
+		return 2
+	elif [ "$(jq -r ".$setting" "$SHdir/instances/$targetInstance.json")" = "null" ]; then
+		printf "${RED_BOLD}The specified key doesn't exist in this instance${RESET}\n"
+		log "ERROR" "instance.sh:modify" "Could not modify the specified instance, the key doesn't exist in this instance"
+		return 2
+	elif [ "$setting" = "versionProfile" ]; then
+		printf "${YELLOW_BOLD}The specified key is generated using the modloader, the game version and the modloader version, please avoid tampering it and modify \"version\", \"modloader\" and \"modloaderVersion\" instead${RESET}\n"
+		log "ERROR" "instance.sh:modify" "Could not modify the specified instance, bad argument (modify the json yourself if you want to)"
+		return 1
+	fi
+
+	# if yes, apply the changes
+	local tempFile
+	tempFile=$(mktemp)
+	jq -r ".$setting |= \"$newValue\"" "$SHdir/instances/$targetInstance.json" > "$tempFile"
+	mv "$tempFile" "$SHdir/instances/$targetInstance.json"
+
+	# if the key concerns the modloader or any versions, notify the user and apply other changes
+	case $setting in
+		"modloader" | "version" | "modloaderVersion")
+			${Sett[ShowUncheckedVersionWarn]} && { 
+				printf "${YELLOW}Please note that SHlauncher does not check if the newly assigned version is installed or if it is even valid. Pay attention${RESET}\n"
+				printf "${WHITE_BOLD}This message won't show up again${RESET}\n"
+				writeSettingsValue ShowUncheckedVersionWarn false
+			}
+			local version
+			version=$(jq -r '.version' "$SHdir/instances/$targetInstance.json")
+			local modloader
+			modloader=$(jq -r '.modloader' "$SHdir/instances/$targetInstance.json")
+			local modloaderVersion
+			modloaderVersion=$(jq -r '.modloaderVersion' "$SHdir/instances/$targetInstance.json")
+
+			case "$modloader" in
+				"forge")
+					true # forge's unsupported so nop
+				;;
+				"neoforge")
+					# shellcheck disable=SC2001
+					fullModLoaderVers="$(echo "$version" | sed 's/^1\.//').${modloaderVersion}"
+				;;
+				"fabric")
+					fullModLoaderVers="$version-$modloaderVersion"
+				;;
+				"quilt")
+					true # same treatment
+			esac
+
+			if [ "$modloader" == "vanilla" ]; then
+				versionProfile="$version"
+			else
+				versionProfile="$modloader-$fullModLoaderVers"
+			fi
+
+			tempFile=$(mktemp)
+			jq -r ".versionProfile |= \"$versionProfile\"" "$SHdir/instances/$targetInstance.json" > "$tempFile"
+			mv "$tempFile" "$SHdir/instances/$targetInstance.json"
+		;;
+		*)
+			true
+	esac
+}
+ExitCode=0
 function argHandler() {
 	case $1 in
 		"create")
 			shift 
 			create "$@"
+			ExitCode=$?
 		;;
 		"remove" | "delete")
 			shift
 			delete "$@"
+			ExitCode=$?
 		;;
 		"list")
 			list
+			ExitCode=$?
 		;;
 		"reset")
 			reset
+			ExitCode=$?
 		;;
 		"sel" | "select" | "switch")
 			shift
 			sel "$@"
+			ExitCode=$?
+		;;
+		"modify")
+			shift
+			modify "$@"
+			ExitCode=$?
 		;;
 		"help")
 			helpPage
@@ -209,6 +310,7 @@ function argHandler() {
 		"")
 			printf "${YELLOW}No argument given, assuming \"list\"${RESET}\n"
 			list
+			ExitCode=$?
 		;;
 		*)
 			printf "${RED_BOLD}Unknown argument : %s${RESET}\n" "$1"
@@ -218,13 +320,14 @@ function argHandler() {
 
 mkdir -p "$SHdir/instances"
 mkdir -p "$MCdir/instances"
-cd "$SHdir/instances" || return 255
 
 parameter[customGameDir]=""
 parameter[anotherGameDir]=false
+parameter[useInstance]=""
 
 declareArgs customGameDir c value
 declareArgs anotherGameDir a flag
+declareArgs useInstance u value
 
 if ! globalArgHandler "$@"; then
 	return $?
@@ -241,3 +344,5 @@ argHandler "${instructions[@]}"
 
 unset parameter
 declare -gA parameter
+
+return "$ExitCode"

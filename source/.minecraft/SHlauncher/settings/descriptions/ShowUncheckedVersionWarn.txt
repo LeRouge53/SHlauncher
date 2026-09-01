@@ -1,0 +1,2 @@
+Show the warning when modifying the version/modloader of an instance
+It is hidden because it is usually irrelevant to the user

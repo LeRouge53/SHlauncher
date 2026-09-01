@@ -192,7 +192,9 @@ function argHandler() {
 			helpPage
 		;;
 		"")
-			if ! $customLaunchProf; then launchProf=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json"); fi
+			if ! $customLaunchProf; then launchProf=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json" 2>/dev/null \
+				|| { log "ERROR" "launch.sh" "Failed to get profile linked to \"${Sett[SelectedProfile]}\""; echo "None"; }); fi # "echo" so, even if the initial command fails, we get something
+			
 			if ! $customLaunchInst; then launchInst=${Sett[SelectedInstance]}; fi
 			if [ "$launchProf" == "None" ] || [ "$launchInst" == "None" ]; then
 				printf "${RED_BOLD}The profile or the instance is missing, cannot launch${RESET}\n"

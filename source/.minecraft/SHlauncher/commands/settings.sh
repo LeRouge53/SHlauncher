@@ -1,5 +1,5 @@
 function list() {
-	printf "|=================================================================================================================================================|\n"
+	printf "|=====================================================================================================================================================|\n"
 	printf "| %-50s | %-30s | %-42s | %-12s |\n" "SETTING NAME" "SETTING ID" "VALUE" "TYPE"
 	mapfile -t settingName < <(jq -r '.settings | to_entries[] | .key' "data/user.json")
 	for (( i=0; i<${#settingName[@]}; i++ )); do
@@ -10,13 +10,13 @@ function list() {
 		settingType=$(jq -r --arg name "${settingName[i]}" '.settings | to_entries[] | select(.key == $name) | .value.type' "data/system.json")
 		isHidden=$(jq -r --arg name "${settingName[i]}" '.settings | to_entries[] | select(.key == $name) | .value.hidden' "data/system.json")
 		if [ "$isHidden" != "true" ] || ${parameter[all]}; then
-			printf "|-------------------------------------------------------------------------------------------------------------------------------------------------|\n"
+			printf "|-----------------------------------------------------------------------------------------------------------------------------------------------------|\n"
 			printf "| %-50s | %-30s | %-42s | %-12s |\n" "$settingDisplayName" "${settingName[i]}" "$settingValue" "$settingType"
 		else
 			log "WARN" "settings.sh:list" "Did not show \"${settingName[i]}\" because it was marked as hidden. Use the parameter \"-a\" to view it"
 		fi
 	done
-	printf "|=================================================================================================================================================|\n"
+	printf "|=====================================================================================================================================================|\n"
 }
 
 function fetch() {

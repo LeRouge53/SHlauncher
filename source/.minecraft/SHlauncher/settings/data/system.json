@@ -47,11 +47,35 @@
             "default": true
         },
         "AutoReturnOnPreCommands": {
-            "displayName": "Stop after running a Pre-shell command",
+            "displayName": "Stop after running a Pre-start command",
             "type": "boolean",
             "description": "descriptions/AutoReturnOnPreCommands.txt",
             "isProtected": false,
             "default": true
+        },
+        "DefaultMinimumRam": {
+            "displayName": "Default minimal amount of ram",
+            "type": "string",
+            "description": "descriptions/DefaultMinimumRam.txt",
+            "isProtected": false,
+            "default": "2G",
+            "hidden": false
+        },
+        "DefaultMaximumRam": {
+            "displayName": "Default maximum amount of ram",
+            "type": "string",
+            "description": "descriptions/DefaultMaximumRam.txt",
+            "isProtected": false,
+            "default": "4G",
+            "hidden": false
+        },
+        "ShowUncheckedVersionWarn": {
+            "displayName": "Show the unchecked version warning",
+            "type": "boolean",
+            "description": "descriptions/ShowUncheckedVersionWarn.txt",
+            "isProtected": false,
+            "default": true,
+            "hidden": true
         },
         "SelectedProfile": {
             "displayName": "Selected profile",

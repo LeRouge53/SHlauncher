@@ -1,0 +1,6 @@
+Defines the minimal amount of ram specified when and only when creating instances
+Modifying this settings will not modify the allocated ram on already created instances, use "instance modify MinRam <value>" for that
+
+The value is not parsed and will be directly passed to java when launching the game using "-Xms".
+Here is an online documentation for to write "-Xms/-Xmx" here : 
+https://www.javaspring.net/blog/change-heap-size-java/#example-1-setting-the-initial-and-maximum-heap-size
