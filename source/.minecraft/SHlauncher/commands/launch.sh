@@ -59,6 +59,7 @@ function launch() {
 	printf "${BLUE_BOLD}Building command...${RESET}\n"
 	
 	jsonInstance=$(jq -r '.versionProfile' "$SHdir/instances/$launchInst.json")
+	side=$(jq -r '.side' "$SHdir/instances/$launchInst.json")
 
 	modloader=$(jq -r '.modloader' "$SHdir/versions/$jsonInstance.json")
 	if [ "$modloader" == "" ] || [ "$modloader" == "null" ]; then modloader="vanilla"; fi
@@ -69,9 +70,10 @@ function launch() {
 			<(jq -r '"\(.name)|\(.versionType)|\(.runtime)|\(.assetIndexId)|\(.mainClass)|\(.nativesDir)|\(.log4jconf)|\(.classpath)"' "$SHdir/versions/$jsonInstance.json")
 		mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$jsonInstance.json")
 		mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$jsonInstance.json")
+	
 	elif [ "$modloader" == "neoforge" ]; then
-		IFS='|' read -r version inheritance versionType mainClass classpath < \
-			<(jq -r '"\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
+		IFS='|' read -r side version inheritance versionType mainClass classpath < \
+			<(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
 		mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
 		mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
 
@@ -79,9 +81,10 @@ function launch() {
 			<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
 		mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
 		mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
+	
 	elif [ "$modloader" == "fabric" ]; then
-		IFS='|' read -r version inheritance versionType mainClass classpath < \
-			<(jq -r '"\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
+		IFS='|' read -r side version inheritance versionType mainClass classpath < \
+			<(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
 		mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
 		mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
 	
@@ -102,6 +105,12 @@ function launch() {
 			log "DEBUG" "launch.sh:launch" "profile's truncated UUID is \"$tuuid\""
 		fi
 	done
+
+	if [ "$side" = "null" ] || [ -z "$side" ]; then
+		side=client
+	fi
+	log "DEBUG" "launch.sh:launch" "resolved side to $side"
+
 	if [ "$java" == "default" ]; then
 		java="$SHdir/java/$runtime/bin/java"
 	fi # else you don't touch it as it supposed to be a direct path to the java exec
@@ -123,23 +132,31 @@ function launch() {
 	finalGameArgs+=("${customGameArgs[@]}")
 	log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
 	
-	printf "${BLUE_BOLD}Finished building command, launching game...${RESET}\n"
 	if ! exceptionCatch "launch.sh:launch" "$java" -version &>/dev/null; then
 		printf "${YELLOW}The required java version is not installed, please install java $runtime using \"java install $runtime\"${RESET}\n"
 		log "ERROR" "launch.sh:launch" "Failed to launch the game, required java not installed"
 		return 1
 	fi
 
+	printf "${BLUE_BOLD}Finished building command, launching game...${RESET}\n"
 	log "INFO" "launch.sh:launch" "All check completed, launching game!"
-	if echo "${finalJvmArgs[@]}" | grep -q "$mainClass"; then # check if the JVM args already have a main class (for old minecraft version)
-		# if yes, don't specify it
-		echo "${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}" > .lastLaunchedGame
-		"${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}"
+	if [ "$side" = "client" ]; then
+		if echo "${finalJvmArgs[@]}" | grep -q "$mainClass"; then # check if the JVM args already have a main class (for old minecraft version)
+			# if yes, don't specify it
+			echo "${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}" > .lastLaunchedGame
+			"${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}"
+		else
+			echo "${java}" "${finalJvmArgs[@]}" "$mainClass" "${finalGameArgs[@]}" > .lastLaunchedGame
+			"${java}" "${finalJvmArgs[@]}" "$mainClass" "${finalGameArgs[@]}" 
+		fi
+		exitCode=$?
 	else
-		echo "${java}" "${finalJvmArgs[@]}" "$mainClass" "${finalGameArgs[@]}" > .lastLaunchedGame
-		"${java}" "${finalJvmArgs[@]}" "$mainClass" "${finalGameArgs[@]}" 
+		cd "$gameDir" || return 255 # I hate using cd but here we kinda don't have the choice
+		# Minecraft servers uses the working directory to read server.properties. So we need change it
+		echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$version/$jsonInstance-server.jar" "${finalGameArgs[@]}" > .lastLaunchedGame
+		"${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$version/$jsonInstance-server.jar" "${finalGameArgs[@]}"
+		exitCode=$?
 	fi
-	exitCode=$?
 
 	unset -v modloader
 

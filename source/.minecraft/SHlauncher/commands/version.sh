@@ -291,15 +291,34 @@ function install() {
 			versionJson="$versDir/$targetVers/$targetVers.json"
 
 			curl --retry 5 --retry-delay 2 -s "$url" | jq '.' > "$versionJson"
-			curl --retry 5 --retry-delay 2 -o "$versDir/$targetVers/$targetVers.jar" "$(jq -r '.downloads.client.url' "$versionJson")" &>/dev/null
 
-			hash=$(sha1sum "$versDir/$targetVers/$targetVers.jar" | awk '{print $1}')
-			if [ "$hash" != "$(jq -r '.downloads.client.sha1' "$versionJson")" ]; then
+			local success=false # temporary variable used to validate the hash (you'll understand 10 lines later)
+			if ! ${parameter[server]}; then
+				# if side is client
+				curl --retry 5 --retry-delay 2 -Sso "$versDir/$targetVers/$targetVers.jar" "$(jq -r '.downloads.client.url' "$versionJson")" &>/dev/null
+				actualHash=$(sha1sum "$versDir/$targetVers/$targetVers.jar" | awk '{print $1}')
+				targetHash=$(jq -r '.downloads.client.sha1' "$versionJson")
+				[ "$actualHash" = "$targetHash" ] \
+					&& success=true; true \
+					|| log "ERROR" "version.sh:install" "Failed to compare hash. expected \"$(jq -r '.downloads.client.sha1' "$versionJson")\" but got \"$(sha1sum "$versDir/$targetVers/$targetVers.jar" | awk '{print $1}')\""
+			else
+				# if side is server
+				curl --retry 5 --retry-delay 2 -Sso "$versDir/$targetVers/$targetVers-server.jar" "$(jq -r '.downloads.server.url' "$versionJson")"
+				actualHash=$(sha1sum "$versDir/$targetVers/$targetVers-server.jar" | awk '{print $1}')
+				targetHash=$(jq -r '.downloads.server.sha1' "$versionJson")
+				[ "$actualHash" = "$targetHash" ] \
+					&& success=true; true \
+					|| log "ERROR" "version.sh:install" "Failed to compare hash. expected \"$(jq -r '.downloads.server.sha1' "$versionJson")\" but got \"$(sha1sum "$versDir/$targetVers/$targetVers-server.jar" | awk '{print $1}')\""
+			fi
+			# the final "true" command is used so in this "A && B || C" statement, C will not execute if B fails
+			# it's just bash being bash
+
+			if ! $success; then
 				printf "${YELLOW}Failed to download the game: mismatched hash\n"
 				printf "${RED}Error is non recoverable : please retry${RESET}\n"
-				command -p rm -r -- "${versDir:?}/$targetVers"
 				return 2
 			fi
+			unset -v success # temporary as I said
 		;;
 		"neoforge")
 			function NeoArgSubstitute() {
@@ -491,12 +510,16 @@ function install() {
 
 	case $modloader in
 		"vanilla")
-			log "INFO" "version.sh:install" "Installing game libraries..."
-			installLib "$versionJson" "libraries"
-			classpath=$outputCp
-			client="versions/${targetVers}/${targetVers}.jar"
-			classpath="${classpath}${cmdSeparator}${client}"
-			log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
+			if ! ${parameter[server]}; then
+				log "INFO" "version.sh:install" "Installing game libraries..."
+				installLib "$versionJson" "libraries"
+				classpath=$outputCp
+				client="versions/${targetVers}/${targetVers}.jar"
+				classpath="${classpath}${cmdSeparator}${client}"
+				log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
+			else
+				printf "${GREEN_BOLD}Skipping library download as it is unrequired for servers${RESET}\n"
+			fi
 		;;
 		"neoforge")
 			printf "${BLUE_BOLD}Merging vanilla and modded library list${RESET}\n"
@@ -540,7 +563,7 @@ function install() {
 			done
 			tempArgs[newIndex]=${tempArgs[newIndex]//'${library_directory}'/"libraries"} # parse it
 			tempArgs[newIndex]=${tempArgs[newIndex]//'${classpath_separator}'/"${cmdSeparator}"}
-			mapfile -td "${cmdSeparator}" CPInAnArray < <(printf '%s' "$classpath")
+			mapfile -td "${cmdSeparator}" CPInAnArray < <(printf '%s' "$classpath") # fun fact : "here documents" add a newline character. I lost days because of that
 			mapfile -td "${cmdSeparator}" delete < <(printf '%s' "${tempArgs[$newIndex]}") # and use it to clean the classpath
 
 			delete+=("versions/$inheritedVers/$inheritedVers.jar")
@@ -551,7 +574,7 @@ function install() {
 					fi
 				done
 			done
-			# now rebuild it and clean the empty spots
+			# now rebuild the classpath and clean the empty spots
 			local new=()
 			for e in "${CPInAnArray[@]}"; do
 				[[ -n "$e" ]] && new+=("$e")
@@ -569,7 +592,7 @@ function install() {
 		log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
 	esac
 
-	if [ "$modloader" == "vanilla" ]; then
+	if ! ${parameter[server]} && [ "$modloader" == "vanilla" ]; then
 		mkdir -p SHlauncher/log4jconf
 		read -r url sha1 name < <(jq -r '.logging.client.file | . as $log | "\($log.url) \($log.sha1) \($log.id)"' "$versionJson")
 		if [ "$name" != "null" ] && [ "$name" != "" ]; then 
@@ -599,7 +622,6 @@ function install() {
 			mkdir -p "$assetDir/objects"
 			mkdir -p "$assetDir/indexes"
 			read -r id url < <(jq -r '. | "\(.assetIndex.id) \(.assetIndex.url)"' "$versionJson")
-			#printf '%q\n' -- note for later
 			curl --fail --retry 5 --retry-delay 2 -s "$url"  | jq '.' > "$assetDir/indexes/$id.json"
 
 			function parallelDownload() {
@@ -738,7 +760,7 @@ function install() {
 		fi
 	else # c'est la fin du vanilla only
 		printf "${GREEN_BOLD}Skipping asset download as it is unrequired for this version${RESET}\n"
-		log "INFO" "version.sh:install" "Assets download is unrequired when downloading a modloader"
+		log "INFO" "version.sh:install" "Assets download is unrequired when downloading a modloader or a server"
 	fi
 
 	echo "Saving progress"
@@ -823,38 +845,44 @@ function install() {
 	jvmArgs=()
 	case $modloader in 
 		"vanilla")
-			jvmArgs+=("$(jq -r '.logging.client.argument' "$versionJson")")
-			while IFS= read -r entry; do
-				while IFS= read -r val; do
-					jvmArgs+=("$val")
-				done < <(evaluateArgEntry "$entry" "$(detect_os)" "" "$(detect_arch)")
-			done < <(jq -c '((.arguments["default-user-jvm"] // []) + (.arguments.jvm // []))[]' "$versionJson")
-			delete=("-Xms2G" "-Xmx4G")
-			for target in "${delete[@]}"; do
-				for i in "${!jvmArgs[@]}"; do
-					if [ "${jvmArgs[i]}" == "$target" ]; then
-						unset 'jvmArgs[i]'
-					fi
+			if ! ${parameter[server]}; then
+				jvmArgs+=("$(jq -r '.logging.client.argument' "$versionJson")")
+				while IFS= read -r entry; do
+					while IFS= read -r val; do
+						jvmArgs+=("$val")
+					done < <(evaluateArgEntry "$entry" "$(detect_os)" "" "$(detect_arch)")
+				done < <(jq -c '((.arguments["default-user-jvm"] // []) + (.arguments.jvm // []))[]' "$versionJson")
+				delete=("-Xms2G" "-Xmx4G")
+				for target in "${delete[@]}"; do
+					for i in "${!jvmArgs[@]}"; do
+						if [ "${jvmArgs[i]}" == "$target" ]; then
+							unset 'jvmArgs[i]'
+						fi
+					done
 				done
-			done
-			runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versionJson")"
-			if $jsonFormatIsModern; then
-				gameArgsJson=$(jq '
-					.arguments.game
-					| map(select(type == "string"))
-				' "$versionJson")
+				runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versionJson")"
+				if $jsonFormatIsModern; then
+					gameArgsJson=$(jq '
+						.arguments.game
+						| map(select(type == "string"))
+					' "$versionJson")
+				else
+					gameArgs=$(jq -r '.minecraftArguments' "$versionJson")
+					read -ra gameArgs <<< "$gameArgs"
+					gameArgsJson="[]"
+					for current in "${gameArgs[@]}"; do
+						gameArgsJson=$(echo "$gameArgsJson"| jq --arg current "$current" '. += [$current]') 
+					done
+					# shellcheck disable=SC2016
+					read -ra jvmArgs <<< '-Djava.library.path=${natives_directory} -Dminecraft.launcher.brand=${launcher_name} -Dminecraft.launcher.version=${launcher_version} -Dlog4j.configurationFile=${path} -cp ${classpath} ${mainClass}'
+					jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -R . | jq -s .)
+				fi
+				log "INFO" "version.sh:install" "Ready to save $targetVers.json"
 			else
-				gameArgs=$(jq -r '.minecraftArguments' "$versionJson")
-				read -ra gameArgs <<< "$gameArgs"
-				gameArgsJson="[]"
-				for current in "${gameArgs[@]}"; do
-					gameArgsJson=$(echo "$gameArgsJson"| jq --arg current "$current" '. += [$current]') 
-				done
-				# shellcheck disable=SC2016
-				read -ra jvmArgs <<< '-Djava.library.path=${natives_directory} -Dminecraft.launcher.brand=${launcher_name} -Dminecraft.launcher.version=${launcher_version} -Dlog4j.configurationFile=${path} -cp ${classpath} ${mainClass}'
+				jvmArgs+=("-DbundlerRepoDir=$SHdir/.minecraft/libraries")
 				jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -R . | jq -s .)
+				runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versionJson")"
 			fi
-			log "INFO" "version.sh:install" "Ready to save $targetVers.json"
 		;;
 		"neoforge")
 			while IFS= read -r entry; do
@@ -888,31 +916,48 @@ function install() {
 	# aled
 	case $modloader in
 		"vanilla")
-			jq -n \
-			--arg targetVers "$targetVers" \
-			--arg versionType "$versionType" \
-			--arg classpath "$classpath" \
-			--argjson gameArgs "$gameArgsJson" \
-			--argjson jvmArgs "$jvmArgsJson" \
-			--arg runtime "$runtime" \
-			--arg id "$id" \
-			--arg mainClass "$mainClass" \
-			--arg log4jName "$name" \
-			'{
-				"name": $targetVers,
-				"modloader": "vanilla",
-				"versionType": $versionType,
-				"classpath": $classpath,
-				"gameArgs": $gameArgs,
-				"jvmArgs": $jvmArgs,
-				"runtime": $runtime,
-				"assetIndexPath": ("./assets/indexes/" + $id + ".json"),
-				"assetIndexId": $id,
-				"assetRoot": "./assets/",
-				"mainClass": $mainClass,
-				"nativesDir": ("natives"),
-				"log4jconf": ("SHlauncher/log4jconf/" + $log4jName),
-			}' > "$SHdir/versions/$targetVers.json"
+			if ! ${parameter[server]}; then
+				jq -n \
+				--arg targetVers "$targetVers" \
+				--arg versionType "$versionType" \
+				--arg classpath "$classpath" \
+				--argjson gameArgs "$gameArgsJson" \
+				--argjson jvmArgs "$jvmArgsJson" \
+				--arg runtime "$runtime" \
+				--arg id "$id" \
+				--arg mainClass "$mainClass" \
+				--arg log4jName "$name" \
+				'{
+					"name": $targetVers,
+					"modloader": "vanilla",
+					"versionType": $versionType,
+					"classpath": $classpath,
+					"gameArgs": $gameArgs,
+					"jvmArgs": $jvmArgs,
+					"runtime": $runtime,
+					"assetIndexPath": ("./assets/indexes/" + $id + ".json"),
+					"assetIndexId": $id,
+					"assetRoot": "./assets/",
+					"mainClass": $mainClass,
+					"nativesDir": ("natives"),
+					"log4jconf": ("SHlauncher/log4jconf/" + $log4jName),
+					"side": "client"
+				}' > "$SHdir/versions/$targetVers.json"
+			else
+				jq -n \
+				--arg targetVers "$targetVers-server" \
+				--arg versionType "$versionType" \
+				--argjson jvmArgs "$jvmArgsJson" \
+				--arg runtime "$runtime" \
+				'{
+					"name": $targetVers,
+					"modloader": "vanilla",
+					"versionType": $versionType,
+					"jvmArgs": $jvmArgs,
+					"runtime": $runtime,
+					"side": "server"
+				}' > "$SHdir/versions/$targetVers-server.json"
+			fi
 		;;
 		"neoforge")
 			jq -n \
@@ -1286,7 +1331,8 @@ function helpPage() {
 	printf " - remove [-m] <vanilla version> [<modloader version>] : Remove the specified version. This instruction is quite inefficient.\n"
 	printf " - help : Print this help\n"
 	printf "\-m\" | \"--modloader\" : Specifies the concerned modloader. Can be vanilla, Forge, Neoforge, Fabric or Quilt\n"
-	printf "\"-v\" | \"--version\" : Select a version \"filter\" (used with the grep command)\n"
+	printf "\"-v\" | \"--version\" : Select a version \"filter\" (used as an argument with the grep command)\n"
+	printf "\"-S\" | \"--server\" : manage server instead of clients"
 }
 
 function Main() {
@@ -1324,9 +1370,11 @@ mkdir -p "$SHdir/versions"
 mkdir -p "$SHdir/log4jconf"
 
 parameter[debugSkipAssets]=false
+parameter[server]=false
 parameter[modloader]=vanilla
 
 declareArgs debugSkipAssets NoShort flag
+declareArgs server S flag
 declareArgs modloader m value
 declareArgs version v value
 

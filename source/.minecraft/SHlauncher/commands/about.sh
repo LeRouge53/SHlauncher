@@ -175,7 +175,7 @@ function aboutLog() {
 		cat "$SHlogFile"
 	else
 		log "DEBUG" "about.sh:aboutLog" "EDITOR variable set to $EDITOR"
-		${EDITOR}  "$SHlogFile"
+		${EDITOR} "$SHlogFile"
 	fi
 }
 
