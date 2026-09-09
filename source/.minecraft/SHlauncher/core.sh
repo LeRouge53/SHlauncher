@@ -211,5 +211,5 @@ while true; do
 	log "INFO" "core.sh" "Displaying shell"
 	read -erp "${dispExitCode}SHlauncher ${DispProf}:${DispInst}> " commandLine # command prompt
 	# shellcheck disable=SC2086
-	launchCommand $commandLine
+	[ -n "$commandLine" ] && launchCommand $commandLine
 done

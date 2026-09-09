@@ -1,15 +1,4 @@
-======== 0.4.1 ========
- - Added changelog files
- - Added return on return command (which terminate the launcher after executing a last command)
- - Added a lot of other argument-based features (like the ability to launch commands directly from bash) and a setting linked to those
- - Added a way to view the log file directly in the launcher ("about log" command)
- - Fixed bugs (kinda)
-======== 0.4.2 ========
- - Fixed a bug that broke neoforge during installation
- - Added some comments
- - The launcher nows check if it has internet BEFORE trying to use the internet
- - Removed useless and out-of-context lines
-======== 0.4.3 ========
- - Added the "config" command (in the form of "instance modify")
- - Added default Minimum/Maximum ram assigned when creating instances (via setting keys)
- - Fixed minor bugs and typos
+======== 0.5.0-pre1 ========
+ - Added vanilla server support
+ - Fixed bugs
+ - Still going (I'm gonna work on the github page)
