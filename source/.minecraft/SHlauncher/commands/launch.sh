@@ -59,14 +59,15 @@ function launch() {
 	printf "${BLUE_BOLD}Building command...${RESET}\n"
 	
 	jsonInstance=$(jq -r '.versionProfile' "$SHdir/instances/$launchInst.json")
-	side=$(jq -r '.side' "$SHdir/instances/$launchInst.json") # checking side in the instance, risky
+	side=$(jq -r '.side' "$SHdir/instances/$launchInst.json") # checking side in the instance, risky!
   
-	modloader=$(jq -r '.modloader' "$SHdir/versions/$jsonInstance.json")
-	if [ "$modloader" == "" ] || [ "$modloader" == null ]; then modloader="vanilla"; fi
-  if [ "$side" == "" ] || [ "$side" == null ]; then side="client"
+  if [ "$side" == "" ] || [ "$side" == null ]; then side="client"; fi
   
 	# get a lot of info from json files
   if [ "$side" = "client" ]; then
+    modloader=$(jq -r '.modloader' "$SHdir/versions/$jsonInstance.json")
+	  if [ "$modloader" == "" ] || [ "$modloader" == null ]; then modloader="vanilla"; fi
+  
 	  if [ "$modloader" == "vanilla" ]; then
 		  IFS='|' read -r version versionType runtime assetIndex mainClass nativesDir log4jconf classpath < \
 			  <(jq -r '"\(.name)|\(.versionType)|\(.runtime)|\(.assetIndexId)|\(.mainClass)|\(.nativesDir)|\(.log4jconf)|\(.classpath)"' "$SHdir/versions/$jsonInstance.json")
@@ -107,11 +108,18 @@ function launch() {
 			  log "DEBUG" "launch.sh:launch" "profile's truncated UUID is \"$tuuid\""
 		  fi
 	  done
+  elif [ "$side" = "server" ]; then
+      IFS='|' read -r runtime < \
+			  <(jq -r '"\(.runtime)"' "$SHdir/versions/$jsonInstance-server.json")
+		  gameArgs=() # useless so empty (arg can still be specified with instances)
+		  mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$jsonInstance-server.json")
+  
+      IFS='|' read -r gameDir java MinRam MaxRam < \
+		    <(jq -r '"\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
+	    mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
+	    mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
   fi
-
-	if [ "$side" = "null" ] || [ -z "$side" ]; then
-		side=client
-	fi
+  
 	log "DEBUG" "launch.sh:launch" "resolved side to $side"
 
 	if [ "$java" == "default" ]; then
@@ -129,7 +137,8 @@ function launch() {
 
 	finalGameArgs=()
 	if [ "$modloader" != "vanilla" ]; then gameArgs+=("${moddedGameArgs[@]}"); fi
-	for arg in "${gameArgs[@]}"; do
+	
+  for arg in "${gameArgs[@]}"; do
 		finalGameArgs+=("$(substituteArg "$arg")")
 	done
 	finalGameArgs+=("${customGameArgs[@]}")
@@ -137,7 +146,7 @@ function launch() {
 	
 	if ! exceptionCatch "launch.sh:launch" "$java" -version &>/dev/null; then
 		printf "${YELLOW}The required java version is not installed, please install java $runtime using \"java install $runtime\"${RESET}\n"
-		log "ERROR" "launch.sh:launch" "Failed to launch the game, required java not installed"
+		log "ERROR" "launch.sh:launch" "Failed to launch the game, required java version \"$runtime\" is not installed"
 		return 1
 	fi
 
@@ -156,8 +165,22 @@ function launch() {
 	else
 		cd "$gameDir" || return 255 # I hate using cd but here we kinda don't have the choice
 		# Minecraft servers uses the working directory to read server.properties. So we need change it
-		echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$version/$jsonInstance-server.jar" "${finalGameArgs[@]}" > .lastLaunchedGame
-		"${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$version/$jsonInstance-server.jar" "${finalGameArgs[@]}"
+
+    # checking for eula
+    if ! cat "$MCdir/eula.txt" | grep -q "eula=true"; then
+      printf "${CYAN}To launch this server, you need to agree to Mojang's EULA (https://aka.ms/MinecraftEULA)${RESET}\n"
+      read -rp "Do you agree to the minecraft EULA ? (y/n)>" yn
+      if [ "$yn" = "y" ]; then
+        echo "To revoke your agreement, set the eula value to false (located in .minecraft/eula.txt)"
+        printf "# By changing this setting to true, you are agreeing to Mojang's End User License Agreement (https://aka.ms/MinecraftEULA)\neula=true" > "$MCdir/eula.txt"
+      else
+        echo "aborting launch"
+        return
+      fi
+    fi
+    
+    echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}" > .lastLaunchedGame
+		"${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}"
 		exitCode=$?
 	fi
 
