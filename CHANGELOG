@@ -15,3 +15,8 @@ This is the global changelog, which lists every version (starting from 0.4.1)
  - Added the "config" command (in the form of "instance modify")
  - Added default Minimum/Maximum ram assigned when creating instances (via setting keys)
  - Fixed minor bugs and typos
+
+======== 0.5.0-pre1 ========
+ - Added vanilla server support
+ - Fixed bugs
+ - Still going (I'm gonna work on the github page)

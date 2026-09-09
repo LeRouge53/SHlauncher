@@ -1,0 +1,4 @@
+Do not initialize a GUI when launching any servers
+
+To do that, it will implicitly pass "--nogui" to the server as a game argument.
+NB: if you already put "--nogui" in your instance's game argument. It will be ignored when launching the game

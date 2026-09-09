@@ -138,9 +138,18 @@ function launch() {
 	finalGameArgs=()
 	if [ "$modloader" != "vanilla" ]; then gameArgs+=("${moddedGameArgs[@]}"); fi
 	
-  for arg in "${gameArgs[@]}"; do
+  	for arg in "${gameArgs[@]}"; do
 		finalGameArgs+=("$(substituteArg "$arg")")
 	done
+
+	if [ "$side" = "server" ] && ${Sett[NoguiOnServer]}; then
+		finalGameArgs+=("--nogui") # add --nogui if the key is set (and if we are launching a server)
+		if [[ "${customGameArgs[*]}" =~ "--nogui" ]]; then
+			IFS=" " read -ra customGameArgs <<< "${customGameArgs[@]//"--nogui"/}"
+
+		fi
+	fi
+
 	finalGameArgs+=("${customGameArgs[@]}")
 	log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
 	
@@ -166,20 +175,20 @@ function launch() {
 		cd "$gameDir" || return 255 # I hate using cd but here we kinda don't have the choice
 		# Minecraft servers uses the working directory to read server.properties. So we need change it
 
-    # checking for eula
-    if ! cat "$MCdir/eula.txt" | grep -q "eula=true"; then
-      printf "${CYAN}To launch this server, you need to agree to Mojang's EULA (https://aka.ms/MinecraftEULA)${RESET}\n"
-      read -rp "Do you agree to the minecraft EULA ? (y/n)>" yn
-      if [ "$yn" = "y" ]; then
-        echo "To revoke your agreement, set the eula value to false (located in .minecraft/eula.txt)"
-        printf "# By changing this setting to true, you are agreeing to Mojang's End User License Agreement (https://aka.ms/MinecraftEULA)\neula=true" > "$MCdir/eula.txt"
-      else
-        echo "aborting launch"
-        return
-      fi
-    fi
+    	# checking for eula
+    	if ! cat "$MCdir/eula.txt" | grep -q "eula=true"; then
+      		printf "${CYAN}To launch this server, you need to agree to Mojang's EULA (https://aka.ms/MinecraftEULA)${RESET}\n"
+      		read -rp "Do you agree to the minecraft EULA ? (y/n)>" yn
+     	 	if [ "$yn" = "y" ]; then
+        		echo "To revoke your agreement, set the eula value to false (located in .minecraft/eula.txt)"
+        		printf "# By changing this setting to true, you are agreeing to Mojang's End User License Agreement (https://aka.ms/MinecraftEULA)\neula=true" > "$MCdir/eula.txt"
+      		else
+        		echo "aborting launch"
+        		return
+      		fi
+    	fi
     
-    echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}" > .lastLaunchedGame
+    	echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}" > "$MCdir/.lastLaunchedGame"
 		"${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}"
 		exitCode=$?
 	fi

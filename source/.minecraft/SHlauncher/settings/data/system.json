@@ -77,6 +77,14 @@
             "default": true,
             "hidden": true
         },
+        "NoguiOnServer": {
+            "displayName": "don't initialize a GUI with servers",
+            "type": "boolean",
+            "description": "descriptions/NoguiOnServer.txt",
+            "isProtected": false,
+            "default": false,
+            "hidden": false
+        },
         "SelectedProfile": {
             "displayName": "Selected profile",
             "type": "string",

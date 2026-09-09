@@ -879,7 +879,7 @@ function install() {
 				fi
 				log "INFO" "version.sh:install" "Ready to save $targetVers.json"
 			else
-				jvmArgs+=("-DbundlerRepoDir=$SHdir/.minecraft/libraries")
+				jvmArgs+=("-DbundlerRepoDir=$MCdir/.minecraft/libraries")
 				jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -R . | jq -s .)
 				runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versionJson")"
 			fi

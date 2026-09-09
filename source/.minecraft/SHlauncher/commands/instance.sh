@@ -20,8 +20,8 @@ function list() {
 			echo " - Java (java): $java"
 			echo " - Minimal amount of RAM (MinRam): $MinRam"
 			echo " - Maximal amount of RAM (MaxRam): $MaxRam"
-			echo " - Additional JVM arguments (additionalJvmArgs): %s" "${additionalJvmArgs[@]}"
-			echo " - Additional game arguments (customGameArgs): %s" "${customGameArgs[@]}"
+			echo " - Additional JVM arguments (additionalJvmArgs): \"${additionalJvmArgs[*]}\""
+			echo " - Additional game arguments (customGameArgs): \"${customGameArgs[*]}\""
 		done
 	fi
 }
