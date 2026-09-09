@@ -59,52 +59,55 @@ function launch() {
 	printf "${BLUE_BOLD}Building command...${RESET}\n"
 	
 	jsonInstance=$(jq -r '.versionProfile' "$SHdir/instances/$launchInst.json")
-	side=$(jq -r '.side' "$SHdir/instances/$launchInst.json")
-
+	side=$(jq -r '.side' "$SHdir/instances/$launchInst.json") # checking side in the instance, risky
+  
 	modloader=$(jq -r '.modloader' "$SHdir/versions/$jsonInstance.json")
-	if [ "$modloader" == "" ] || [ "$modloader" == "null" ]; then modloader="vanilla"; fi
-	
+	if [ "$modloader" == "" ] || [ "$modloader" == null ]; then modloader="vanilla"; fi
+  if [ "$side" == "" ] || [ "$side" == null ]; then side="client"
+  
 	# get a lot of info from json files
-	if [ "$modloader" == "vanilla" ]; then
-		IFS='|' read -r version versionType runtime assetIndex mainClass nativesDir log4jconf classpath < \
-			<(jq -r '"\(.name)|\(.versionType)|\(.runtime)|\(.assetIndexId)|\(.mainClass)|\(.nativesDir)|\(.log4jconf)|\(.classpath)"' "$SHdir/versions/$jsonInstance.json")
-		mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$jsonInstance.json")
-		mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$jsonInstance.json")
+  if [ "$side" = "client" ]; then
+	  if [ "$modloader" == "vanilla" ]; then
+		  IFS='|' read -r version versionType runtime assetIndex mainClass nativesDir log4jconf classpath < \
+			  <(jq -r '"\(.name)|\(.versionType)|\(.runtime)|\(.assetIndexId)|\(.mainClass)|\(.nativesDir)|\(.log4jconf)|\(.classpath)"' "$SHdir/versions/$jsonInstance.json")
+		  mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$jsonInstance.json")
+		  mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$jsonInstance.json")
 	
-	elif [ "$modloader" == "neoforge" ]; then
-		IFS='|' read -r side version inheritance versionType mainClass classpath < \
-			<(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
-		mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
-		mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
+	  elif [ "$modloader" == "neoforge" ]; then
+		  IFS='|' read -r side version inheritance versionType mainClass classpath < \
+			  <(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
+		  mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
+		  mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
 
-		IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
-			<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
-		mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
-		mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
+		  IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
+			  <(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
+		  mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
+		  mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
 	
-	elif [ "$modloader" == "fabric" ]; then
-		IFS='|' read -r side version inheritance versionType mainClass classpath < \
-			<(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
-		mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
-		mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
+	  elif [ "$modloader" == "fabric" ]; then
+		  IFS='|' read -r side version inheritance versionType mainClass classpath < \
+			  <(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
+		  mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
+		  mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
 	
-		IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
-			<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
-		mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
-		mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
-	fi
+		  IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
+			  <(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
+		  mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
+		  mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
+	  fi
 
-	IFS='|' read -r gameDir assetsDir java MinRam MaxRam < \
-		<(jq -r '"\(.gameDir)|\(.assetsDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
-	mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
-	mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
+	  IFS='|' read -r gameDir assetsDir java MinRam MaxRam < \
+		  <(jq -r '"\(.gameDir)|\(.assetsDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
+	  mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
+	  mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
 
-	for Fprof in ./SHlauncher/profiles/*.json; do
-		if [ "$(jq -r '.name' "$Fprof")" == "$launchProf" ]; then
-			tuuid=$(jq -r '.tuuid' "$Fprof")
-			log "DEBUG" "launch.sh:launch" "profile's truncated UUID is \"$tuuid\""
-		fi
-	done
+	  for Fprof in ./SHlauncher/profiles/*.json; do
+		  if [ "$(jq -r '.name' "$Fprof")" == "$launchProf" ]; then
+			  tuuid=$(jq -r '.tuuid' "$Fprof")
+			  log "DEBUG" "launch.sh:launch" "profile's truncated UUID is \"$tuuid\""
+		  fi
+	  done
+  fi
 
 	if [ "$side" = "null" ] || [ -z "$side" ]; then
 		side=client
