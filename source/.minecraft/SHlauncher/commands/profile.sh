@@ -5,10 +5,6 @@ function UUIDcalc() {
 	uuid="${hash:0:8}-${hash:8:4}-${hash:12:4}-${hash:16:4}-${hash:20:12}"
 	echo "$uuid"
 }
-function trimmedUUIDcalc() {
-	uuid=$(echo -n "OfflinePlayer:${1}" | md5sum | cut -d' ' -f1) #majik(1)
-	echo "$uuid" # idrk why I needed 2 functions but that's an issue I will fix later 
-}
 
 function SetColor() {
 	# still the same stuffs from core.sh at line 20
@@ -63,9 +59,10 @@ case $1 in
 			printf "${RED_BOLD}The name of this profile can't be \"None\", please use another name${RESET}\n"
 			return 2
 		else
-			log "INFO" "profile.sh:create" "Creating profile \"$usrn\" \"$(UUIDcalc "$usrn")\""
-			echo "creating profile with username: \"$usrn\" and UUID: \"$(UUIDcalc "$usrn")\""
-			echo '{"name":"'"$usrn"'" , "isOnline":false , "uuid":"'"$(UUIDcalc "$usrn")"'" , "tuuid":"'"$(trimmedUUIDcalc "$usrn")"'"}' | jq . > "$(UUIDcalc "$usrn")".json
+      uuid=$(UUIDcalc "$usrn")
+			log "INFO" "profile.sh:create" "Creating profile \"$usrn\" \"$uuid\""
+			echo "creating profile with username: \"$usrn\" and UUID: \"$uuid\""
+			echo '{"name":"'"$usrn"'" , "isOnline":false , "uuid":"'"$uuid'" , "tuuid":"'"${uuid//-/}'"}' | jq . > "$uuid.json"
 		fi
 	;;
 	"sel" | "select" | "switch")

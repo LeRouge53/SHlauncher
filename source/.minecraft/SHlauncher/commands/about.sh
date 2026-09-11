@@ -187,7 +187,7 @@ function helpPage() {
 	printf " - version: Show the version of the launcher\n"
 	printf " - about (or nothing): Show useful information and links\n"
 	printf " - help: Print this help\n"
-	printf " - whatsnew: Prints the launcher's local changelog"
+	printf " - whatsnew | changelog: Prints the launcher's local changelog"
 	printf ' - log: Display the log file in the user'\''s editor (require an exported $EDITOR variable)'
 }
 
@@ -202,7 +202,7 @@ function argHandler() {
 	"test-color")
 		testColor
 	;;
-	"whatsnew")
+	"whatsnew" | "changelog")
 		whatsNew
 	;;
 	"log")
