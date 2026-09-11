@@ -62,7 +62,13 @@ case $1 in
       uuid=$(UUIDcalc "$usrn")
 			log "INFO" "profile.sh:create" "Creating profile \"$usrn\" \"$uuid\""
 			echo "creating profile with username: \"$usrn\" and UUID: \"$uuid\""
-			echo '{"name":"'"$usrn"'" , "isOnline":false , "uuid":"'"$uuid'" , "tuuid":"'"${uuid//-/}'"}' | jq . > "$uuid.json"
+			jq -n \
+			'{
+				"name":"'"$usrn"'",
+				"isOnline":false , 
+				"uuid":"'"$uuid"'",
+				"tuuid":"'"${uuid//-/}"'"
+			}' | jq . > "$uuid.json"
 		fi
 	;;
 	"sel" | "select" | "switch")

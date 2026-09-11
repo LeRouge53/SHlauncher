@@ -33,7 +33,9 @@ if $color; then # if color=false, (NO_COLOR variable, don't use any ANSI escape 
 		WHITE_DIM=${WHITE}$'\033[2m'
 		WHITE_UNDER=${WHITE}$'\033[4m'
 
-    RESET=$'\033[0m'
+    	RESET=$'\033[0m'
+		RL_START=$'\001'
+		RL_END=$'\002'
 	elif [ "${Sett[Color]}" = "use8" ]; then
 		RED_BOLD=$'\e[1;31m'
 		RED_DIM=$'\e[2;31m'
@@ -65,7 +67,10 @@ if $color; then # if color=false, (NO_COLOR variable, don't use any ANSI escape 
 		WHITE_UNDER=$'\e[4;37m'
 		WHITE=$'\e[37m'
 
-    RESET=$'\033[0m'
+    	RESET=$'\033[0m'
+		RL_START=$'\001'
+		RL_END=$'\002'
+
 	elif [ "${Sett[Color]}" = "NoColor" ]; then
 		RED_BOLD=$'\033[1m'
 		RED_DIM=$'\033[2m'
@@ -97,10 +102,10 @@ if $color; then # if color=false, (NO_COLOR variable, don't use any ANSI escape 
 		WHITE_UNDER=$'\033[4m'
 		WHITE=$'\O33[0m'
 
-    RESET=$'\033[0m'
+    	RESET=$'\033[0m'
+		RL_START=$'\001'
+		RL_END=$'\002'
 	fi
 fi
 
 log "INFO" "colorHandler.sh" "Colors loaded (${Sett[Color]})"
-RL_START=$'\001'
-RL_END=$'\002'

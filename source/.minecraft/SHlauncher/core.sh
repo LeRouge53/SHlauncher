@@ -35,6 +35,8 @@ log "DEBUG" "core.sh" "Started loading display instance"
 if [ "${Sett[SelectedInstance]}" == "None" ]; then 
 	DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	log "WARN" "core.sh" "Display instance was resolved to None"
+elif [ "$(jq -r '.side' "$SHdir/instances/${Sett[SelectedInstance]}.json")" = "server" ]; then
+	DispInst="${RL_START}${CYAN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 else
 	DispInst="${RL_START}${GREEN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	log "INFO" "core.sh" "Display profile was resolved to \"${Sett[SelectedInstance]}\""

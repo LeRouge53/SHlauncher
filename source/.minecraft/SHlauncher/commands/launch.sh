@@ -46,22 +46,27 @@ substituteArg() {
 function launch() {
 	launchProf=$1
 	launchInst=$2
-	case "" in
-		"$launchProf" | "$launchInst")
-			printf "${YELLOW_BOLD}[BUG] Function launch require 2 arguments but some are missing! Check the log file for more info\n" >&2
-			log "ERROR" "launch.sh:launch" "BUG : Some argument are missing. Expected argument: launchProf \"$launchProf\", launchInst \"$launchInst\""
-			return 2
-		;;
-		*)
-			true
-	esac
+
+	if ! $customLaunchProf; then launchProf=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json" 2>/dev/null \
+		|| { log "ERROR" "launch.sh" "Failed to get profile linked to \"${Sett[SelectedProfile]}\""; echo "None"; }); fi # "echo" so, even if the initial command fails, we get something
+
+	if [ -z "$launchInst" ]; then
+		printf "${YELLOW_BOLD}[BUG] Function launch require 2 arguments but some are missing! Check the log file for more info\n" >&2
+		log "ERROR" "launch.sh:launch" "BUG : Some argument are missing. Expected argument: launchProf \"$launchProf\", launchInst \"$launchInst\""
+		return 2
+	fi
+
 	log "INFO" "launch.sh:launch" "Launching game with profile \"$launchProf\" and instance \"$launchInst\""
 	printf "${BLUE_BOLD}Building command...${RESET}\n"
 	
 	jsonInstance=$(jq -r '.versionProfile' "$SHdir/instances/$launchInst.json")
 	side=$(jq -r '.side' "$SHdir/instances/$launchInst.json") # checking side in the instance, risky!
-  
-  if [ "$side" == "" ] || [ "$side" == null ]; then side="client"; fi
+	if [ "$side" == "" ] || [ "$side" == null ]; then side="client"; fi
+
+	if [ "$side" = "client" ] && [ "$launchProf" == "None" ]; then
+		log "ERROR" "launch.sh:launch" "Cannot launch! no profile were found (required when launching a client)"
+		printf "${RED_BOLD}Cannot launch the game. The profile is missing (create it with \"profile create <usrn>\")${RESET}\n"
+	fi
   
 	# get a lot of info from json files
   if [ "$side" = "client" ]; then
@@ -244,13 +249,9 @@ function argHandler() {
 			helpPage
 		;;
 		"")
-			if ! $customLaunchProf; then launchProf=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json" 2>/dev/null \
-				|| { log "ERROR" "launch.sh" "Failed to get profile linked to \"${Sett[SelectedProfile]}\""; echo "None"; }); fi # "echo" so, even if the initial command fails, we get something
-			
 			if ! $customLaunchInst; then launchInst=${Sett[SelectedInstance]}; fi
-			if [ "$launchProf" == "None" ] || [ "$launchInst" == "None" ]; then
+			if [ "$launchInst" == "None" ]; then
 				printf "${RED_BOLD}The profile or the instance is missing, cannot launch${RESET}\n"
-				printf "${RED}Entered profile : %s\n" "$launchProf"
 				printf "Entered instance : %s${RESET}\n" "$launchInst"
 				log "ERROR" "launch.sh" "Failed to launch the game : some required parameters are missing"
 				return 2
