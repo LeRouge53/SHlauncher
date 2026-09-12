@@ -20,7 +20,7 @@ jobs:
         echo "Building ${{ github.ref_name }}"
 
     - name: Checkout
-        uses: actions/checkout@v4
+      uses: actions/checkout@v4
 
     - name: Create archives
       run: |
