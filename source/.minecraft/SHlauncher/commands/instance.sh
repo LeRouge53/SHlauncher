@@ -12,7 +12,7 @@ function list() {
 			mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$Finst")
 			mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
 
-			printf "${BLUE}%s :${RESET}\n" "$name"
+			printf "${BLUE_BOLD}%s :${RESET}\n" "$name"
 			echo " - Version (version): $version"
 			echo " - Side (side): $side"
 			echo " - Modloader (modloader - modloaderVersion): $modloader $modloaderVersion"

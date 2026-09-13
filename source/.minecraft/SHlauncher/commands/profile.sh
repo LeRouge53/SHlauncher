@@ -8,14 +8,16 @@ function UUIDcalc() {
 
 function SetColor() {
 	# still the same stuffs from core.sh at line 20
-	if [ "${Sett[SelectedProfile]}" == "None" ]; then \
+	if [ "${Sett[SelectedProfile]}" == "None" ]; then
 		DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
 		return
 	fi
 	profile=$(jq -r '.name' "${Sett[SelectedProfile]}.json")
-	if jq -e '.isOnline' "${Sett[SelectedProfile]}.json" &>/dev/null; then \
-		DispProf="${RL_START}${BLUE}${RL_END}${profile}${RL_START}${RESET}${RL_END}"; else \
-		DispProf="${RL_START}${YELLOW}${RL_END}${profile}${RL_START}${RESET}${RL_END}"; fi
+	if jq -e '.isOnline' "${Sett[SelectedProfile]}.json" &>/dev/null; then
+		DispProf="${RL_START}${BLUE}${RL_END}${profile}${RL_START}${RESET}${RL_END}";
+	else
+		DispProf="${RL_START}${YELLOW}${RL_END}${profile}${RL_START}${RESET}${RL_END}"
+	fi
 }
 
 isDone=false
@@ -37,6 +39,9 @@ function helpPage() {
 
 log "INFO" "profile.sh" "profile.sh called with instructions $*"
 
+
+# In short, I didn't used functions here because it's the 1st command I actually made
+# I didn't really have any bash experience so here we are. (def need to fix that at some point)
 case $1 in
 	"list")
 		if [ "$(ls)" == "" ]; then
@@ -44,7 +49,7 @@ case $1 in
 		else
 			for Fprof in *.json; do
 				log "INFO" "profile.sh:list" "Checking profile \"$Fprof\""
-				printf "${BLUE}%s :${RESET}\n" "$(jq -r '.name' "$Fprof")"
+				printf "${BLUE_BOLD}%s :${RESET}\n" "$(jq -r '.name' "$Fprof")"
 				echo " - UUID: $(jq -r .uuid "$Fprof")"
 			done
 		fi

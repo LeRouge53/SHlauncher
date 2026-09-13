@@ -208,7 +208,7 @@ if $trace; then
 	printf "As you wish...\n"
 	set -x
 fi
-# starting to check dependencies (jq and unzip)
+# starting to check dependencies (jq, unzip and curl)
 export MissingDependencies=()
 
 mkdir -p "$SHdir/jq"
@@ -231,6 +231,10 @@ fi
 if ! unzip --help &>/dev/null; then
 	log "FATAL" "init.sh" "Unzip was not found in the PATH, crash imminent"
 	MissingDependencies+=("unzip")
+fi
+if ! curl --version &>/dev/null; then
+	log "FATAL" "init.sh" "curl was not found in the PATH, crash imminent"
+	MissingDependencies+=("curl")
 fi
 # shellcheck source=.minecraft/SHlauncher/dependencyInst.sh
 source "$SHdir/dependencyInst.sh"
