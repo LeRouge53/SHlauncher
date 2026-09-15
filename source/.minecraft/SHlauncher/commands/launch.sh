@@ -16,7 +16,7 @@ substituteArg() {
 	log "DEBUG" "launch.sh:substituteArg" "Resolving \"$oldArg\""
 
 	arg="${arg//'${natives_directory}'/$nativesDir}"
-	arg="${arg//'${library_directory}'/"libraries"}"
+	arg="${arg//'${library_directory}'/"$MCdir/libraries"}"
 	arg="${arg//'${classpath_separator}'/"$cmdSeparator"}"
 	arg="${arg//'${version_name}'/"${modloader}-${fullModLoaderVers}"}"
 
@@ -60,6 +60,10 @@ function launch() {
 	printf "${BLUE_BOLD}Building command...${RESET}\n"
 	
 	jsonInstance=$(jq -r '.versionProfile' "$SHdir/instances/$launchInst.json")
+
+	modloader=$(jq -r '.modloader' "$SHdir/instances/$launchInst.json")
+	if [ "$modloader" == "" ] || [ "$modloader" == null ]; then modloader="vanilla"; fi
+	
 	side=$(jq -r '.side' "$SHdir/instances/$launchInst.json") # checking side in the instance, risky!
 	if [ "$side" == "" ] || [ "$side" == null ]; then side="client"; fi
 
@@ -69,94 +73,126 @@ function launch() {
 	fi
   
 	# get a lot of info from json files
-  if [ "$side" = "client" ]; then
-    modloader=$(jq -r '.modloader' "$SHdir/versions/$jsonInstance.json")
-	  if [ "$modloader" == "" ] || [ "$modloader" == null ]; then modloader="vanilla"; fi
-  
-	  if [ "$modloader" == "vanilla" ]; then
-		  IFS='|' read -r version versionType runtime assetIndex mainClass nativesDir log4jconf classpath < \
-			  <(jq -r '"\(.name)|\(.versionType)|\(.runtime)|\(.assetIndexId)|\(.mainClass)|\(.nativesDir)|\(.log4jconf)|\(.classpath)"' "$SHdir/versions/$jsonInstance.json")
-		  mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$jsonInstance.json")
-		  mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$jsonInstance.json")
-	
-	  elif [ "$modloader" == "neoforge" ]; then
-		  IFS='|' read -r side version inheritance versionType mainClass classpath < \
-			  <(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
-		  mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
-		  mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
+	if [ "$side" = "client" ]; then
 
-		  IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
-			  <(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
-		  mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
-		  mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
+		if [ "$modloader" == "vanilla" ]; then
+			IFS='|' read -r version versionType runtime assetIndex mainClass nativesDir log4jconf classpath < \
+				<(jq -r '"\(.name)|\(.versionType)|\(.runtime)|\(.assetIndexId)|\(.mainClass)|\(.nativesDir)|\(.log4jconf)|\(.classpath)"' "$SHdir/versions/$jsonInstance.json")
+			mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$jsonInstance.json")
+			mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$jsonInstance.json")
 	
-	  elif [ "$modloader" == "fabric" ]; then
-		  IFS='|' read -r side version inheritance versionType mainClass classpath < \
-			  <(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
-		  mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
-		  mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
+		elif [ "$modloader" == "neoforge" ]; then
+			IFS='|' read -r side version inheritance versionType mainClass classpath < \
+				<(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
+			mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
+			mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
+
+			IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
+				<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
+			mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
+			mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
 	
-		  IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
-			  <(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
-		  mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
-		  mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
-	  fi
+		elif [ "$modloader" == "fabric" ]; then
+			IFS='|' read -r side version inheritance versionType mainClass classpath < \
+				<(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$jsonInstance.json")
+			mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$jsonInstance.json")
+			mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$jsonInstance.json")
+	
+			IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
+				<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
+			mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
+			mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
+		fi
 
-	  IFS='|' read -r gameDir assetsDir java MinRam MaxRam < \
-		  <(jq -r '"\(.gameDir)|\(.assetsDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
-	  mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
-	  mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
+		IFS='|' read -r gameDir assetsDir java MinRam MaxRam < \
+			<(jq -r '"\(.gameDir)|\(.assetsDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
+		mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
+		mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
 
-	  for Fprof in ./SHlauncher/profiles/*.json; do
-		  if [ "$(jq -r '.name' "$Fprof")" == "$launchProf" ]; then
-			  tuuid=$(jq -r '.tuuid' "$Fprof")
-			  log "DEBUG" "launch.sh:launch" "profile's truncated UUID is \"$tuuid\""
-		  fi
-	  done
-  elif [ "$side" = "server" ]; then
-      IFS='|' read -r runtime < \
-			  <(jq -r '"\(.runtime)"' "$SHdir/versions/$jsonInstance-server.json")
-		  gameArgs=() # useless so empty (arg can still be specified with instances)
-		  mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$jsonInstance-server.json")
-  
-      IFS='|' read -r gameDir java MinRam MaxRam < \
-		    <(jq -r '"\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
-	    mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
-	    mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
-  fi
-  
+		for Fprof in ./SHlauncher/profiles/*.json; do
+			if [ "$(jq -r '.name' "$Fprof")" == "$launchProf" ]; then
+				tuuid=$(jq -r '.tuuid' "$Fprof")
+				log "DEBUG" "launch.sh:launch" "profile's truncated UUID is \"$tuuid\""
+			fi
+		done
+	elif [ "$side" = "server" ]; then
+		if [ "$modloader" = "vanilla" ]; then
+			IFS='|' read -r runtime < \
+				<(jq -r '"\(.runtime)"' "$SHdir/versions/$jsonInstance-server.json")
+			gameArgs=() # useless so empty (arg can still be specified with instances)
+			mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$jsonInstance-server.json")
+		elif [ "$modloader" = "neoforge" ]; then
+			IFS='|' read -r runtime < \
+				<(jq -r '"\(.runtime)"' "$SHdir/versions/$jsonInstance-server.json")
+			gameArgs=()
+			mapfile -t launchArgs < <(jq -r '.launchArgs[]' "$SHdir/versions/$jsonInstance-server.json")
+		else
+			echo "I'm doing nothing, and there is a problem!"
+		fi
+		IFS='|' read -r gameDir java MinRam MaxRam < \
+				<(jq -r '"\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
+		mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$launchInst.json")
+		mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$launchInst.json")
+	fi
+
 	log "DEBUG" "launch.sh:launch" "resolved side to $side"
 
 	if [ "$java" == "default" ]; then
 		java="$SHdir/java/$runtime/bin/java"
 	fi # else you don't touch it as it supposed to be a direct path to the java exec
-
-	# building arguments
-	jvmArgs+=("${additionalJvmArgs[@]}")
-	if [ "$modloader" != "vanilla" ]; then jvmArgs+=("${moddedJvmArgs[@]}"); fi
-	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
-	for arg in "${jvmArgs[@]}"; do
-		finalJvmArgs+=("$(substituteArg "$arg")")
-	done
-	log "DEBUG" "launch.sh:launch" "finalJVMArgs : ${finalJvmArgs[*]}"
-
-	finalGameArgs=()
-	if [ "$modloader" != "vanilla" ]; then gameArgs+=("${moddedGameArgs[@]}"); fi
 	
-  	for arg in "${gameArgs[@]}"; do
-		finalGameArgs+=("$(substituteArg "$arg")")
-	done
+	if [ "$side" = "client" ]; then
+		# building arguments
+		jvmArgs+=("${additionalJvmArgs[@]}")
+		if [ "$modloader" != "vanilla" ]; then jvmArgs+=("${moddedJvmArgs[@]}"); fi
+		finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
+		for arg in "${jvmArgs[@]}"; do
+			finalJvmArgs+=("$(substituteArg "$arg")")
+		done
+		log "DEBUG" "launch.sh:launch" "finalJVMArgs : ${finalJvmArgs[*]}"
 
-	if [ "$side" = "server" ] && ${Sett[NoguiOnServer]}; then
-		finalGameArgs+=("--nogui") # add --nogui if the key is set (and if we are launching a server)
-		if [[ "${customGameArgs[*]}" =~ "--nogui" ]]; then
-			IFS=" " read -ra customGameArgs <<< "${customGameArgs[@]//"--nogui"/}"
+		finalGameArgs=()
+		if [ "$modloader" != "vanilla" ]; then gameArgs+=("${moddedGameArgs[@]}"); fi
 
+  		for arg in "${gameArgs[@]}"; do
+			finalGameArgs+=("$(substituteArg "$arg")")
+		done
+
+		finalGameArgs+=("${customGameArgs[@]}")
+		log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
+	else
+		if ${Sett[NoguiOnServer]}; then
+			finalGameArgs+=("--nogui") # add --nogui if the key is set (and if we are launching a server)
+			if [[ "${customGameArgs[*]}" =~ "--nogui" ]]; then
+				IFS=" " read -ra customGameArgs <<< "${customGameArgs[@]//"--nogui"/}"
+				log "INFO" "launch.sh" "launching server with --nogui (following setting key)"
+			fi
 		fi
-	fi
 
-	finalGameArgs+=("${customGameArgs[@]}")
-	log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
+		case "$modloader" in
+			"vanilla")
+				jvmArgs+=("${additionalJvmArgs[@]}")
+				finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
+				for arg in "${jvmArgs[@]}"; do
+					finalJvmArgs+=("$(substituteArg "$arg")")
+				done
+				log "DEBUG" "launch.sh:launch" "finalJVMArgs : ${finalJvmArgs[*]}"
+				finalGameArgs=()
+				for arg in "${gameArgs[@]}"; do
+					finalGameArgs+=("$(substituteArg "$arg")")
+				done
+
+				finalGameArgs+=("${customGameArgs[@]}")
+				log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
+			;;
+			"neoforge")
+				finalLaunchArgs=("-Xms$MinRam" "-Xmx$MaxRam")
+				for arg in "${launchArgs[@]}"; do
+					finalLaunchArgs+=("$(substituteArg "$arg")")
+				done
+				finalLaunchArgs+=("${customGameArgs[@]}")
+		esac
+	fi
 	
 	if ! exceptionCatch "launch.sh:launch" "$java" -version &>/dev/null; then
 		printf "${YELLOW}The required java version is not installed, please install java $runtime using \"java install $runtime\"${RESET}\n"
@@ -166,36 +202,46 @@ function launch() {
 
 	printf "${BLUE_BOLD}Finished building command, launching game...${RESET}\n"
 	log "INFO" "launch.sh:launch" "All check completed, launching game!"
+
 	if [ "$side" = "client" ]; then
 		if echo "${finalJvmArgs[@]}" | grep -q "$mainClass"; then # check if the JVM args already have a main class (for old minecraft version)
 			# if yes, don't specify it
-			echo "${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}" > .lastLaunchedGame
+			echo "${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}" > "$MCdir/.lastLaunchedGame"
 			"${java}" "${finalJvmArgs[@]}" "${finalGameArgs[@]}"
 		else
-			echo "${java}" "${finalJvmArgs[@]}" "$mainClass" "${finalGameArgs[@]}" > .lastLaunchedGame
+			echo "${java}" "${finalJvmArgs[@]}" "$mainClass" "${finalGameArgs[@]}" > "$MCdir/.lastLaunchedGame"
 			"${java}" "${finalJvmArgs[@]}" "$mainClass" "${finalGameArgs[@]}" 
 		fi
 		exitCode=$?
 	else
-		cd "$gameDir" || return 255 # I hate using cd but here we kinda don't have the choice
+		cd "$gameDir" || return 255 # I don't like using cd but here we kinda don't have the choice
 		# Minecraft servers uses the working directory to read server.properties. So we need change it
 
     	# checking for eula
-    	if ! cat "$MCdir/eula.txt" | grep -q "eula=true"; then
-      		printf "${CYAN}To launch this server, you need to agree to Mojang's EULA (https://aka.ms/MinecraftEULA)${RESET}\n"
-      		read -rp "Do you agree to the minecraft EULA ? (y/n)>" yn
-     	 	if [ "$yn" = "y" ]; then
-        		echo "To revoke your agreement, set the eula value to false (located in .minecraft/eula.txt)"
-        		printf "# By changing this setting to true, you are agreeing to Mojang's End User License Agreement (https://aka.ms/MinecraftEULA)\neula=true" > "$MCdir/eula.txt"
-      		else
-        		echo "aborting launch"
-        		return
-      		fi
-    	fi
-    
-    	echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}" > "$MCdir/.lastLaunchedGame"
-		"${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}"
-		exitCode=$?
+		if ! cat "$MCdir/eula.txt" | grep -q "eula=true"; then
+			printf "${CYAN}To launch this server, you need to agree to Mojang's EULA (https://aka.ms/MinecraftEULA)${RESET}\n"
+			read -rp "Do you agree to the minecraft EULA ? (y/n)>" yn
+			if [ "$yn" = "y" ] || [ "$yn" = "yes" ]; then
+				echo "To revoke your agreement, set the eula value to false (located in .minecraft/eula.txt)"
+				printf "# By changing this setting to true, you are agreeing to Mojang's End User License Agreement (https://aka.ms/MinecraftEULA)\neula=true" > "$MCdir/eula.txt"
+				sleep 2
+			else
+				echo "aborting launch"
+				return
+			fi
+		fi
+		
+		case "$modloader" in
+			"vanilla")
+				echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}" > "$MCdir/.lastLaunchedGame"
+				"${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$jsonInstance/$jsonInstance-server.jar" "${finalGameArgs[@]}"
+				exitCode=$?
+			;;
+			"neoforge")
+				echo "${java}" "${finalLaunchArgs[@]}" > "$MCdir/.lastLaunchedGame"
+				"${java}" @<(printf -- "%s\n" "${finalLaunchArgs[@]}") # if it works don't touch it
+				exitCode=$?
+		esac
 	fi
 
 	unset -v modloader

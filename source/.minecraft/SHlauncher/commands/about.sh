@@ -19,7 +19,7 @@ Welcome and thank you for using SHlauncher. This short guide will explain to you
 how to launch the game and how to optimize the launch of the game.
 
 
- ${GREEN_BOLD}${GREEN_UNDER}- Preparation :${RESET}
+${GREEN_BOLD}${GREEN_UNDER} - Preparation :${RESET}
 ${BLUE_BOLD}This part will introduce you to the launcher or to a terminal in general.${RESET}
 
 This launcher uses a custom shell to get and analyze commands entered commands.

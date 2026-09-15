@@ -893,7 +893,7 @@ function install() {
 				fi
 				log "INFO" "version.sh:install" "Ready to save $targetVers.json"
 			else
-				jvmArgs+=("-DbundlerRepoDir=$MCdir/.minecraft/libraries")
+				jvmArgs+=("-DbundlerRepoDir=$MCdir/libraries")
 				jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -R . | jq -s .)
 				runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versionJson")"
 			fi
@@ -919,7 +919,9 @@ function install() {
 					mapfile -td $'\n' launchArgs < "$MCdir/libraries/net/neoforged/neoforge/$fullModLoaderVers/unix_args.txt"
 				fi
 
+				launchArgs=("${launchArgs[@]//"libraries"/'${library_directory}'}")
 				launchArgsJson=$(printf '%s\n' "${launchArgs[@]}" | jq -Rs 'split("\n")[:-1]')
+				runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versDir/$inheritedVers/$inheritedVers.json")" # runtime is actually required to launch the game here..
 			fi
 		;;
 		"fabric")
@@ -1010,6 +1012,7 @@ function install() {
 				--arg name "$fullModLoaderVers-server" \
 				--arg inheritFrom "$inheritedVers" \
 				--arg versionType "$versionType" \
+				--arg runtime "$runtime" \
 				--argjson launchArgs "$launchArgsJson" \
 				'{
 					"name": $name,
@@ -1017,6 +1020,7 @@ function install() {
 					"inheritsFrom": $inheritFrom,
 					"versionType": $versionType,
 					"launchArgs": $launchArgs,
+					"runtime": $runtime,
 					"side": "server"
 				}' > "$SHdir/versions/neoforge-$fullModLoaderVers-server.json"
 			fi
@@ -1070,19 +1074,17 @@ function list() {
 			if [ "$(ls)" == "" ]; then printf "${YELLOW}No versions are installed yet${RESET}\n"; fi
 			for vers in *.json; do
 				log "DEBUG" "version.sh:list" "Checking version \"$vers\""
-				read -r name versionType runtime assetIndex currentModloader <<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.assetIndexId?) \(.modloader)"' "$vers")"
+				read -r name versionType runtime currentModloader <<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.modloader)"' "$vers")"
 				if [ "$currentModloader" = "null" ]; then currentModloader="vanilla"; fi
 				if [ "$currentModloader" = "$modloader" ]; then
 					if [ "$modloader" != "vanilla" ]; then
 						inheritance=$(jq -r '.inheritsFrom' "$vers")
 						runtime=$(jq -r '.runtime' "$inheritance.json")
-						assetIndex=$(jq -r '.assetIndexId' "$inheritance.json")
 					fi
 					printf "${BLUE_BOLD}$name :${RESET}\n"
 					echo " - Modloader: $currentModloader"
 					echo " - Java runtime: $runtime"
 					echo " - Version type: $versionType"
-					echo " - Uses assetIndex $assetIndex"
 				fi
 			done
 			cd "$MCdir" || return 255

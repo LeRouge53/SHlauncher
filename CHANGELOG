@@ -20,3 +20,11 @@ This is the global changelog, which lists every version (starting from 0.4.1)
  - Added vanilla server support
  - Fixed bugs
  - Still going (I'm gonna work on the github page)
+======== 0.5.0-pre2 ========
+ - Added a github workflow to use the releases (and the tags) (better late than never)
+ - Added neoforge server support (with roughly no bugs)
+ - Moved ROR into it's own file (cleaner)
+ - Fixed minor bugs
+   - Made the library directory path absolute when launching the game
+   - "-DbundlerRepoDir" nows no longer points to .minecraft/.minecraft
+ - Removed the "assetIndex" category from "version list" results
