@@ -13,7 +13,7 @@ Without counting jq, the launcher also relies on tools that are usually preinsta
 Please note that the launcher is not POSIX-compliant and only support bash. It does not support zsh, sh, ash, dash and fish (all were tested)
 
 ## Features
-- **Colors** : The launcher uses by default the 24 bit color system, ensuring that every colors are displayed properly (it can be disabled or modified)
+- **Colors** : The launcher uses by default the 24 bit color system, ensuring that every colors are displayed properly (it can be modified or disabled)
 
 - **Multi-instances system** : The launcher support managing multiples instances/profiles
 

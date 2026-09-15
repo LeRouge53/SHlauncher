@@ -12,7 +12,7 @@ function list() {
 			mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$Finst")
 			mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
 
-			printf "${BLUE}%s :${RESET}\n" "$name"
+			printf "${BLUE_BOLD}%s :${RESET}\n" "$name"
 			echo " - Version (version): $version"
 			echo " - Side (side): $side"
 			echo " - Modloader (modloader - modloaderVersion): $modloader $modloaderVersion"
@@ -28,8 +28,10 @@ function list() {
 
 function SetColor() {
 	# basically the same thing as around the line 20 of core.sh
-	if [ "${Sett[SelectedInstance]}" == "None" ]; then \
+	if [ "${Sett[SelectedInstance]}" == "None" ]; then
 		DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
+	elif [ "$(jq -r '.side' "$SHdir/instances/${Sett[SelectedInstance]}.json")" = "server" ]; then
+		DispInst="${RL_START}${CYAN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	else
 		DispInst="${RL_START}${GREEN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	fi
@@ -100,19 +102,13 @@ function create() {
 
 	log "INFO" "instance.sh:create" "Requested creation of instance \"$name\" with modloader \"$modloader\" and version $version $modloaderVersion"
 	echo "creating instance $name with modloader $modloader and version $version $modloaderVersion"
-	if ! ${parameter[server]}; then
-		if [ "$modloader" == "vanilla" ]; then
-			versionProfile="$version"
-		else
-			versionProfile="$modloader-$fullModLoaderVers"
-		fi
+
+	if [ "$modloader" == "vanilla" ]; then
+		versionProfile="$version"
 	else
-		if [ "$modloader" == "vanilla" ]; then
-			versionProfile="$version"
-		else
-			versionProfile="$modloader-$fullModLoaderVers"
-		fi
+		versionProfile="$modloader-$fullModLoaderVers"
 	fi
+	
 	log "DEBUG" "instance.sh:create" "Resolved versionProfile to \"$versionProfile\""
 
 	if ${parameter[anotherGameDir]}; then
@@ -125,11 +121,11 @@ function create() {
 		gameDir="$MCdir" # if none are specified, just use .minecraft
 	fi
 	if ${parameter[server]}; then
-		printf "# By changing this setting to true, you are agreeing to Mojang's End User License Agreement (https://aka.ms/MinecraftEULA)\neula=false" > "$MCdir/eula.txt"
-		if [ "$gameDir" != "$MCdir" ]; then
-			if exceptionCatch "instance.sh:create" ln "$MCdir/eula.txt" "$gameDir/eula.txt"; then
-				printf "${YELLOW}Failed to create the symlink between the main eula.txt and the secondary in the instance folder${RESET}\n"
-				printf "${YELLOW}This may not be an issue (if the directory was not empty before creation). But it can lead to some problems when launching the server${RESET}\n"
+		[ -f "$MCdir/eula.txt" ] || printf "# By changing this setting to true, you are agreeing to Mojang's End User License Agreement (https://aka.ms/MinecraftEULA)\neula=false" > "$MCdir/eula.txt"
+		if [ "$gameDir" != "$MCdir" ]; then # obviously don't try to create a shortcut if it leads to itself
+			if ! exceptionCatch "instance.sh:create" ln "$MCdir/eula.txt" "$gameDir/eula.txt" --symbolic; then
+				printf "${YELLOW}Failed to create the symlink between the main eula.txt and the secondary file in the instance folder${RESET}\n"
+				printf "${YELLOW}This may not be an issue (if the directory was not empty before creation). But it can lead to some problems when launching the server. Check the log file for more info${RESET}\n"
 			fi
 		fi
 	fi

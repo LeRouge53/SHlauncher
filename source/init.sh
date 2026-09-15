@@ -97,7 +97,7 @@ cip=true
 onlineMode=true
 
 SHlname="SHlauncherBE"
-SHlvers="0.5.0-pre1" # edit version here
+SHlvers="0.5.0-pre2" # edit version here
 
 IFSBak=$' \t\n'
 
@@ -208,7 +208,7 @@ if $trace; then
 	printf "As you wish...\n"
 	set -x
 fi
-# starting to check dependencies (jq and unzip)
+# starting to check dependencies (jq, unzip and curl)
 export MissingDependencies=()
 
 mkdir -p "$SHdir/jq"
@@ -231,6 +231,10 @@ fi
 if ! unzip --help &>/dev/null; then
 	log "FATAL" "init.sh" "Unzip was not found in the PATH, crash imminent"
 	MissingDependencies+=("unzip")
+fi
+if ! curl --version &>/dev/null; then
+	log "FATAL" "init.sh" "curl was not found in the PATH, crash imminent"
+	MissingDependencies+=("curl")
 fi
 # shellcheck source=.minecraft/SHlauncher/dependencyInst.sh
 source "$SHdir/dependencyInst.sh"
@@ -411,7 +415,7 @@ if $onlineMode; then
 		cat manifests/temp_manifest.json > manifests/vanilla_version_manifest.json
 	else
 		log "WARN" "init.sh" "Vanilla manifest download failed, invalid JSON file"
-		printf "${YELLOW}The newly downloaded vanilla manifest seem invalid, the old one will be used instead${RESET}\n"
+		printf "${YELLOW_BOLD}[WARN]${RESET}${YELLOW} The newly downloaded vanilla manifest seem invalid, the old one will be used instead${RESET}\n"
 	fi
 
 	if curl -so manifests/temp_manifest.xml https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml; then
@@ -422,7 +426,7 @@ if $onlineMode; then
 			> manifests/neoforge_version_manifest.json
 	else
 		log "WARN" "init.sh" "Neoforge manifest download failed, invalid JSON file"
-		printf "${YELLOW}The newly downloaded Neoforge manifest seem invalid, the old one will be used instead${RESET}\n"
+		printf "${YELLOW_BOLD}[WARN]${RESET}${YELLOW} The newly downloaded Neoforge manifest seem invalid, the old one will be used instead${RESET}\n"
 		
 	fi
 
@@ -430,7 +434,7 @@ if $onlineMode; then
 		cat manifests/temp_manifest.json > manifests/fabric/fabric_game_manifest.json
 	else
 		log "WARN" "init.sh" "fabric game manifest download failed, invalid JSON file"
-		printf "${YELLOW}The newly downloaded Fabric game manifest seem invalid, the old one will be used instead${RESET}\n"
+		printf "${YELLOW_BOLD}[WARN]${RESET}${YELLOW} The newly downloaded Fabric game manifest seem invalid, the old one will be used instead${RESET}\n"
 	fi
 else
 	printf "${YELLOW_BOLD}[WARN]${YELLOW} Unable to reload some manifest file, old one will be used instead${RESET}\n"

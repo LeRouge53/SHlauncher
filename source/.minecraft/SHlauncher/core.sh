@@ -35,6 +35,8 @@ log "DEBUG" "core.sh" "Started loading display instance"
 if [ "${Sett[SelectedInstance]}" == "None" ]; then 
 	DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	log "WARN" "core.sh" "Display instance was resolved to None"
+elif [ "$(jq -r '.side' "$SHdir/instances/${Sett[SelectedInstance]}.json")" = "server" ]; then
+	DispInst="${RL_START}${CYAN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 else
 	DispInst="${RL_START}${GREEN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	log "INFO" "core.sh" "Display profile was resolved to \"${Sett[SelectedInstance]}\""
@@ -107,34 +109,9 @@ function commandLineHandler() {
 		cmdExitCode=$?
 	;;
 	"ror")
-		case "$1" in
-			"ror")
-				log "ERROR" "ror.sh" "command is Return on return, can't operate"
-				printf "${RED_BOLD}Please don't use the return on return command with itself"
-				return 2
-			;;
-			"help")
-				printf "${CYAN}Usage :${RESET} ror <command>\n"
-				printf "Executes the provided command and exit the launcher afterwards\n"
-				printf "to actually use help as a command, enter \"\\help\"\n"
-				return
-			;;
-			'\help')
-				commandLineHandler "help"
-			;;
-			"")
-				printf "${RED_BOLD}A command is required, type \"ror help\""
-			;;
-			*)
-				commandLineHandler "$@"
-		esac
-
-		history -w
-		history -c
-		HISTFILE="$HOME/.bash_history"
-		history -r
-		set +x
-		exit "$cmdExitCode"
+		# shellcheck source=commands/ror.sh
+		source "$cmdDir/ror.sh" "$@"
+		cmdExitCode=$?
 	;;
 	"help")
 		# shellcheck source=commands/about.sh

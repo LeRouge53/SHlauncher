@@ -9,6 +9,9 @@ if [ "${MissingDependencies[*]}" != "" ]; then
 	if [[ "${MissingDependencies[*]}" =~ unzip ]]; then
 		echo "unzip : ZIP file decompressor"
 	fi
+	if [[ "${MissingDependencies[*]}" =~ curl ]]; then
+		echo "curl : URL downloader"
+	fi
 
 	read -rp "Would you like to install the dependencies automatically ?(y/n)>" yn
 	if [ "$yn" = "y" ]; then
@@ -24,6 +27,11 @@ if [ "${MissingDependencies[*]}" != "" ]; then
 						printf "${RED_BOLD}Failed to install unzip, check the log file for more info${RESET}\n"
 					fi
 				}
+				[[ "${MissingDependencies[*]}" =~ curl ]] && {
+					if ! exceptionCatch "dependencyInst.sh" pacman -S msys/curl; then
+						printf "${RED_BOLD}Failed to install curl, check the log file for more info${RESET}\n"
+					fi
+				}
 			else
 				printf "${YELLOW}Root access is required for installation${RESET}\n"
 				[[ "${MissingDependencies[*]}" =~ jq ]] && { 
@@ -34,6 +42,11 @@ if [ "${MissingDependencies[*]}" != "" ]; then
 				[[ "${MissingDependencies[*]}" =~ unzip ]] && {
 					if ! exceptionCatch "dependencyInst.sh" sudo apt install unzip; then
 						printf "${RED_BOLD}Failed to install unzip, check the log file for more info${RESET}\n"
+					fi
+				}
+				[[ "${MissingDependencies[*]}" =~ curl ]] && {
+					if ! exceptionCatch "dependencyInst.sh" sudo apt install curl; then
+						printf "${RED_BOLD}Failed to install curl, check the log file for more info${RESET}\n"
 					fi
 				}
 			fi

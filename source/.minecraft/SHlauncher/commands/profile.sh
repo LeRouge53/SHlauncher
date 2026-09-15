@@ -5,21 +5,19 @@ function UUIDcalc() {
 	uuid="${hash:0:8}-${hash:8:4}-${hash:12:4}-${hash:16:4}-${hash:20:12}"
 	echo "$uuid"
 }
-function trimmedUUIDcalc() {
-	uuid=$(echo -n "OfflinePlayer:${1}" | md5sum | cut -d' ' -f1) #majik(1)
-	echo "$uuid" # idrk why I needed 2 functions but that's an issue I will fix later 
-}
 
 function SetColor() {
 	# still the same stuffs from core.sh at line 20
-	if [ "${Sett[SelectedProfile]}" == "None" ]; then \
+	if [ "${Sett[SelectedProfile]}" == "None" ]; then
 		DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
 		return
 	fi
 	profile=$(jq -r '.name' "${Sett[SelectedProfile]}.json")
-	if jq -e '.isOnline' "${Sett[SelectedProfile]}.json" &>/dev/null; then \
-		DispProf="${RL_START}${BLUE}${RL_END}${profile}${RL_START}${RESET}${RL_END}"; else \
-		DispProf="${RL_START}${YELLOW}${RL_END}${profile}${RL_START}${RESET}${RL_END}"; fi
+	if jq -e '.isOnline' "${Sett[SelectedProfile]}.json" &>/dev/null; then
+		DispProf="${RL_START}${BLUE}${RL_END}${profile}${RL_START}${RESET}${RL_END}";
+	else
+		DispProf="${RL_START}${YELLOW}${RL_END}${profile}${RL_START}${RESET}${RL_END}"
+	fi
 }
 
 isDone=false
@@ -41,6 +39,9 @@ function helpPage() {
 
 log "INFO" "profile.sh" "profile.sh called with instructions $*"
 
+
+# In short, I didn't used functions here because it's the 1st command I actually made
+# I didn't really have any bash experience so here we are. (def need to fix that at some point)
 case $1 in
 	"list")
 		if [ "$(ls)" == "" ]; then
@@ -48,7 +49,7 @@ case $1 in
 		else
 			for Fprof in *.json; do
 				log "INFO" "profile.sh:list" "Checking profile \"$Fprof\""
-				printf "${BLUE}%s :${RESET}\n" "$(jq -r '.name' "$Fprof")"
+				printf "${BLUE_BOLD}%s :${RESET}\n" "$(jq -r '.name' "$Fprof")"
 				echo " - UUID: $(jq -r .uuid "$Fprof")"
 			done
 		fi
@@ -63,9 +64,16 @@ case $1 in
 			printf "${RED_BOLD}The name of this profile can't be \"None\", please use another name${RESET}\n"
 			return 2
 		else
-			log "INFO" "profile.sh:create" "Creating profile \"$usrn\" \"$(UUIDcalc "$usrn")\""
-			echo "creating profile with username: \"$usrn\" and UUID: \"$(UUIDcalc "$usrn")\""
-			echo '{"name":"'"$usrn"'" , "isOnline":false , "uuid":"'"$(UUIDcalc "$usrn")"'" , "tuuid":"'"$(trimmedUUIDcalc "$usrn")"'"}' | jq . > "$(UUIDcalc "$usrn")".json
+      uuid=$(UUIDcalc "$usrn")
+			log "INFO" "profile.sh:create" "Creating profile \"$usrn\" \"$uuid\""
+			echo "creating profile with username: \"$usrn\" and UUID: \"$uuid\""
+			jq -n \
+			'{
+				"name":"'"$usrn"'",
+				"isOnline":false , 
+				"uuid":"'"$uuid"'",
+				"tuuid":"'"${uuid//-/}"'"
+			}' | jq . > "$uuid.json"
 		fi
 	;;
 	"sel" | "select" | "switch")

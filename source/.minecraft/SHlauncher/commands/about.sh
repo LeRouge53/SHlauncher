@@ -19,7 +19,7 @@ Welcome and thank you for using SHlauncher. This short guide will explain to you
 how to launch the game and how to optimize the launch of the game.
 
 
- ${GREEN_BOLD}${GREEN_UNDER}- Preparation :${RESET}
+${GREEN_BOLD}${GREEN_UNDER} - Preparation :${RESET}
 ${BLUE_BOLD}This part will introduce you to the launcher or to a terminal in general.${RESET}
 
 This launcher uses a custom shell to get and analyze commands entered commands.
@@ -187,7 +187,7 @@ function helpPage() {
 	printf " - version: Show the version of the launcher\n"
 	printf " - about (or nothing): Show useful information and links\n"
 	printf " - help: Print this help\n"
-	printf " - whatsnew: Prints the launcher's local changelog"
+	printf " - whatsnew | changelog: Prints the launcher's local changelog"
 	printf ' - log: Display the log file in the user'\''s editor (require an exported $EDITOR variable)'
 }
 
@@ -202,7 +202,7 @@ function argHandler() {
 	"test-color")
 		testColor
 	;;
-	"whatsnew")
+	"whatsnew" | "changelog")
 		whatsNew
 	;;
 	"log")
