@@ -68,7 +68,7 @@ function launch() {
 	if [ "$side" == "" ] || [ "$side" == null ]; then side="client"; fi
 
 	if [ "$side" = "client" ] && [ "$launchProf" == "None" ]; then
-		log "ERROR" "launch.sh:launch" "Cannot launch! no profile were found (required when launching a client)"
+		log "ERROR" "launch.sh:launch" "Cannot launch, no profile were specified."
 		printf "${RED_BOLD}Cannot launch the game. The profile is missing (create it with \"profile create <usrn>\")${RESET}\n"
 	fi
   
@@ -126,8 +126,6 @@ function launch() {
 				<(jq -r '"\(.runtime)"' "$SHdir/versions/$jsonInstance-server.json")
 			gameArgs=()
 			mapfile -t launchArgs < <(jq -r '.launchArgs[]' "$SHdir/versions/$jsonInstance-server.json")
-		else
-			echo "I'm doing nothing, and there is a problem!"
 		fi
 		IFS='|' read -r gameDir java MinRam MaxRam < \
 				<(jq -r '"\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)"' "$SHdir/instances/$launchInst.json")
@@ -187,6 +185,7 @@ function launch() {
 			;;
 			"neoforge")
 				finalLaunchArgs=("-Xms$MinRam" "-Xmx$MaxRam")
+				finalLaunchArgs+=("${additionalJvmArgs[@]}")
 				for arg in "${launchArgs[@]}"; do
 					finalLaunchArgs+=("$(substituteArg "$arg")")
 				done
