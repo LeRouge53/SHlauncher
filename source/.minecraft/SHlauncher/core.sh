@@ -90,7 +90,7 @@ function commandLineHandler() {
 	;;
 	"launch")
 		# shellcheck source=commands/launch.sh
-		source "$cmdDir/launch2.sh" "$@"
+		source "$cmdDir/launch.sh" "$@"
 		cmdExitCode=$?
 	;;
 	"opendir")
