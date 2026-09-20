@@ -73,7 +73,7 @@ function checkJava() {
 
 	if ! exceptionCatch "launch.sh:prepareLaunch" "$java" -version &>/dev/null; then
 		printf "${YELLOW}The required java version is not installed, please install java $runtime using \"java install $runtime\"${RESET}\n"
-		log "ERROR" "launch.sh:launch" "Failed to launch the game, required java version \"$runtime\" is not installed"
+		log "ERROR" "launch.sh:launch" "Failed to launch the game, required java version \"$runtime\" is not or incorrectly installed"
 		return 1
 	fi
 }
@@ -170,14 +170,24 @@ function launchServerNeoforge() {
 	log "DEBUG" "launch.sh:launch" "finalLaunchArgs : ${finalLaunchArgs[*]}"
 }
 
-function launchServerFabric() {
-
-	checkJava || return # unsupported feature. so YES IT WILL BREAK THE LAUNCH
-	# also it's supposed to be in B-E only so I don't really care
+function lauchServerFabric() {
+	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
+	finalJvmArgs+=("${additionalJvmArgs[@]}")
+n
+	IFS='|' read -r classpath inheritance mainClass < \
+		<(jq -r '"\(.moddedCp)|\(.inheritsFrom)|\(.mainClass)"' "$SHdir/versions/$versionProfile-server.json")
+	mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$versionProfile-server.json")
+	mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$versionProfile-server.json")
+	
+	IFS='|' read -r runtime < \
+		<(jq -r '"\(.runtime)"' "$SHdir/versions/$inheritance.json")
+	checkJava || return
 
 	if ${Sett[NoguiOnServer]}; then
 		[[ "${finalGameArgs[*]}" =~ "--nogui" ]] || finalGameArgs+=("--nogui")
 	fi
+	finalJvmArgs+=("${moddedJvmArgs[@]}" "-cp" "${classpath}")
+	finalGameArgs+=("${moddedGameArgs[@]}")
 }
 
 
@@ -295,6 +305,10 @@ function prepareLaunch() {
 				;;
 				"fabric")
 					launchServerFabric "$launchProf" "$launchInst"
+
+					echo "${java}" "${finalJvmArgs[@]}" "${mainClass}" "${gameArgs[@]}" > "$MCdir/.lastLaunchedGame"
+					"${java}" "${finalJvmArgs[@]}" "${mainClass}" "${gameArgs[@]}"
+					exitCode=$?
 				;;
 				*)
 					log "ERROR" "launch.sh:prepareLaunch" "Unrecognized modloader \"$modloader\", cannot continue launch"
@@ -311,9 +325,9 @@ function prepareLaunch() {
 	esac
 
 	log "INFO" "launch.sh:launch" "Game returned with exit code $exitCode"
-	if [ "$exitCode" -ne 0 ]; then
+	if [ "${exitCode:=256}" -ne 0 ]; then
 		echo ""
-		printf "${RED_BOLD}The game crashed or did not returned successfully (exit code %s)! Check the crash-report or the log file for more info${RESET}\n" "$exitCode"
+		printf "${RED_BOLD}The game crashed or did not returned successfully (exit code %s)! Check the crash-report or the minecraft log file for more info${RESET}\n" "$exitCode"
 		return "$exitCode"
 	else
 		printf "${GREEN_BOLD}Game returned without issues (exit code 0)${RESET}\n"

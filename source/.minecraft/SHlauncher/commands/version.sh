@@ -5,21 +5,21 @@ cd "$MCdir" || source "$SHdir/crashHandler.sh" CD_FAIL
 function fabricManifestDownloader() {
 	local gameVers=$1
 	local loaderVers=$2
-	local noPrint=$3
+	local silent=$3
 	local server=$4
 	log "DEBUG" "version.sh:fabricManifestDownloader" "starting with $gameVers $loaderVers"
 	if [ -z "$gameVers" ]; then
 		printf "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function fabricManifestDownloader require 2 arguments but some are missing! Check the log file for more info \n" >&2
-		log "ERROR" "version.sh:fabricManifestDownloader" "BUG : Some argument are missing. Expected argument: gameVers \"$gameVers\", loaderVers (optional) \"$loaderVers\", noPrint (optional) \"$noPrint\", server (optional) \"$server\""
+		log "ERROR" "version.sh:fabricManifestDownloader" "BUG : Some argument are missing. Expected argument: gameVers \"$gameVers\", loaderVers (optional) \"$loaderVers\", silent (optional) \"$silent\", server (optional) \"$server\""
 		return 2
 	fi
 	
-	case $noPrint in
+	case $silent in
 		"true")
-			noPrint=true
+			silent=true
 		;;
 		*)
-			noPrint=false
+			silent=false
 	esac
 
 	case $server in
@@ -31,7 +31,7 @@ function fabricManifestDownloader() {
 	esac
 
 	if ! $onlineMode; then
-		$noPrint || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n" >&2
+		$silent || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n" >&2
 		return 3
 	fi
 
@@ -41,7 +41,7 @@ function fabricManifestDownloader() {
 			cat "$SHdir/manifests/temp_manifest.json" > "$SHdir/manifests/fabric/$gameVers/$gameVers.json"
 		else
 			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch fabric compatibility for game version \"$gameVers\"; version is invalid or unsupported by fabric"
-			$noPrint || printf "${RED}The specified minecraft version ($gameVers) is invalid or not supported by fabric${RESET}\n" >&2
+			$silent || printf "${RED}The specified minecraft version ($gameVers) is invalid or not supported by fabric${RESET}\n" >&2
 			return 1
 		fi
 	else
@@ -56,7 +56,7 @@ function fabricManifestDownloader() {
 			cat "$SHdir/manifests/temp_manifest.json" > "$MCdir/versions/fabric-$gameVers-$loaderVers/$finalFileName"
 		else
 			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch game version \"$gameVers\" with loader \"$loaderVers\"; version is invalid or unsupported by fabric"
-			$noPrint || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid or unsupported by fabric${RESET}\n" >&2
+			$silent || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid or unsupported by fabric${RESET}\n" >&2
 			return 1
 		fi
 	fi
@@ -513,11 +513,13 @@ function install() {
 			fullModLoaderVers="${targetVers}-${modlVers}"
 			versionJson="$versDir/fabric-$fullModLoaderVers/fabric-${fullModLoaderVers}.json"
 			${parameter[server]} && versionJson="$versDir/fabric-$fullModLoaderVers/fabric-${fullModLoaderVers}-server.json"
-
-			if ! fabricManifestDownloader "$targetVers" "$modlVers" ""; then
-				printf "${RED_BOLD}Failed to get the manifest, cannot continue installation${RESET}\n"
-				log "WARN" "version.sh:install" "cannot continue installation"
-				return 1
+			
+			if ! [ -f "$versionJson" ]; then
+				if ! fabricManifestDownloader "$targetVers" "$modlVers" "false" "${parameter[server]}"; then
+					printf "${RED_BOLD}Failed to get the manifest, cannot continue installation${RESET}\n"
+					log "WARN" "version.sh:install" "cannot continue installation"
+					return 1
+				fi
 			fi
 
 			inheritedVers=$(jq -r '.inheritsFrom' "$versionJson")
@@ -532,12 +534,6 @@ function install() {
 				if ! [ -f "$versDir/$inheritedVers/$inheritedVers-server.jar" ]; then
 					printf "${RED_BOLD}The requested version inherits part of his content from the vanilla \"$inheritedVers\" server version, please install it first${RESET}\n"
 					log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
-					return 1
-				fi
-				
-				# installing the server
-				if ! exceptionCatch "version.sh:install" curl -sfLo "$MCdir/versions/$fullModLoaderVers-server.jar" "https://meta.fabricmc.net/v2/versions/loader/$targetVers/$modlVers/1.1.2/server/jar"; then # hardcoded installer version, idk if it's bad or good
-					printf "${RED_BOLD}Failed to install the server, check the log file for more info!\n"
 					return 1
 				fi
 			fi
@@ -957,15 +953,22 @@ function install() {
 			fi
 		;;
 		"fabric")
-			while IFS= read -r entry; do
+			while IFS="" read -r entry; do
 				while IFS= read -r val; do
 					jvmArgs+=("$val")
 				done < <(evaluateArgEntry "$entry" "$osName" "" "$(detect_arch)")
-			done < <(jq -c '.arguments.jvm[]' "$versionJson")
+			done < <(jq -c '.arguments.jvm[]' "$versionJson" 2>/dev/null) # if .argument.jvm doesn't exist, then we will have an empty array which is fine
+			jvmArgs+=("-DbundlerRepoDir=$MCdir/libraries")
 
-			gameArgsJson=$(jq '.arguments.game' "$versionJson")
-			inheritedClasspath=$(jq -r '.classpath' "$SHdir/versions/$inheritedVers.json")
-			classpath="${inheritedClasspath}${classpath}"
+			gameArgsJson=$(jq '.arguments.game' "$versionJson" 2>/dev/null)
+
+			if ! ${parameter[server]}; then
+				inheritedClasspath=$(jq -r '.classpath' "$SHdir/versions/$inheritedVers.json")
+				classpath="${inheritedClasspath}${classpath}"
+			else
+				classpath="$MCdir/versions/$inheritedVers/$inheritedVers-server.jar${cmdSeparator}${classpath}"
+			fi
+			
 			log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers"
 			
 	esac
@@ -1084,6 +1087,7 @@ function install() {
 				--arg inheritsFrom "$inheritedVers" \
 				--arg versionType "$versionType" \
 				--arg moddedCp "$classpath" \
+				--argjson moddedGameArgs "$gameArgsJson" \
 				--argjson moddedJvmArgs "$jvmArgsJson" \
 				--arg mainClass "$mainClass" \
 				'{
@@ -1095,7 +1099,7 @@ function install() {
 					"moddedGameArgs": $moddedGameArgs,
 					"moddedJvmArgs": $moddedJvmArgs,
 					"mainClass": $mainClass,
-					"side": "client"
+					"side": "server"
 				}' > "$SHdir/versions/fabric-$fullModLoaderVers-server.json"
 			fi
 	esac

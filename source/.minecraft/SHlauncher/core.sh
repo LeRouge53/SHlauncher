@@ -185,7 +185,6 @@ while true; do
 		dispExitCode=""
 	fi
 
-	log "INFO" "core.sh" "Displaying shell"
 	read -erp "${dispExitCode}SHlauncher ${DispProf}:${DispInst}> " commandLine # command prompt
 	# shellcheck disable=SC2086
 	[ -n "$commandLine" ] && launchCommand $commandLine
