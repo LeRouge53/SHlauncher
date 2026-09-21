@@ -17,7 +17,7 @@ Please note that the launcher is not POSIX-compliant and only support bash. It d
 
 - **Multi-instances system** : The launcher support managing multiples instances/profiles
 
-- **Modloader support** : SHlauncher supports the Neoforge and Fabric modloader
+- **Modloader support** : SHlauncher supports the Neoforge and Fabric modloader, as well as the majority of minecraft versions
 
 - **Internal shell** : The script uses an internal shell instead of the normal bash shell. It allows the launcher to use a personalized prompt string (`PS1`), hold an history and keep a clean environment.
 
@@ -29,9 +29,9 @@ Please note that the launcher is not POSIX-compliant and only support bash. It d
 
 This list is sorted in the order in which I would like to create them
 
-- **Server support** : Yes, the launcher doesn't support servers yet
+- **Plugin support** : Could be funny
 
-- **More modloader support** : I want to add Forge to the launcher
+- **More modloader support** : I want to add Forge and quilt to the launcher
 
 - **AARCH64 CPU support** : so android can use the launcher (that will not be easy so not coming soon)
 

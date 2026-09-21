@@ -206,6 +206,7 @@ log "INFO" "init.sh" "Starting $SHlname, version $SHlvers, debug mode: $debug, v
 
 if $trace; then
 	printf "As you wish...\n"
+	PS4='${BLUE_BOLD}+ [TRACE]${RESET} '
 	set -x
 fi
 # starting to check dependencies (jq, unzip and curl)

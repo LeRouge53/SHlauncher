@@ -1433,9 +1433,9 @@ function helpPage() {
 	printf " - install [-m] <vanilla version> [<modloader version>] : Install the specified version (some version might not be supported)\n"
 	printf " - remove [-m] <vanilla version> [<modloader version>] : Remove the specified version. This instruction is quite inefficient.\n"
 	printf " - help : Print this help\n"
-	printf "\-m\" | \"--modloader\" : Specifies the concerned modloader. Can be vanilla, Forge, Neoforge, Fabric or Quilt\n"
+	printf "\"-m\" | \"--modloader\" : Specifies the concerned modloader. Can be vanilla, Forge, Neoforge, Fabric or Quilt\n"
 	printf "\"-v\" | \"--version\" : Select a version \"filter\" (used as an argument with the grep command)\n"
-	printf "\"-S\" | \"--server\" : manage server instead of clients"
+	printf "\"-S\" | \"--server\" : manage server instead of clients\n"
 }
 
 function Main() {

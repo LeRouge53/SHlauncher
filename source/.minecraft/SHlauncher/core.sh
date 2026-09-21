@@ -18,7 +18,7 @@ fi
 log "DEBUG" "core.sh" "Started loading display profile"
 # alot of chaos there, but it sets colors in the prompt string based on the profile
 if [ "${Sett[SelectedProfile]}" == "None" ]; then
-	log "WARN" "core.sh" "Display profile was resolved to None"
+	log "INFO" "core.sh" "Display profile was resolved to None"
 	DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
 else
 	profile=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json")
@@ -34,7 +34,7 @@ log "DEBUG" "core.sh" "Started loading display instance"
 # same but for the instance
 if [ "${Sett[SelectedInstance]}" == "None" ]; then 
 	DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
-	log "WARN" "core.sh" "Display instance was resolved to None"
+	log "INFO" "core.sh" "Display instance was resolved to None"
 elif [ "$(jq -r '.side' "$SHdir/instances/${Sett[SelectedInstance]}.json")" = "server" ]; then
 	DispInst="${RL_START}${CYAN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 else
@@ -52,7 +52,8 @@ function commandLineHandler() {
 		printf "${YELLOW_BOLD}[BUG]${YELLOW} Function commandLineHandler require 1 arguments but it is missing! Check the log file for more info${RESET}\n"
 		log "ERROR" "core.sh:commandLineHandler" "BUG : Some argument are missing. Expected argument: commandLine \"$commandLine\""
 	fi
-	if [ "$*" != "" ] || [ "$lastCommandLine" != "$*" ]; then
+
+	if [ "$*" != "" ] || [ "$lastCommandLine" != "$*" ]; then # this never worked and I don't know why.
 		history -s -- "$*"
 	fi
 	lastCommandLine="$*"
@@ -62,8 +63,8 @@ function commandLineHandler() {
 	case "$cmd" in
 	"exit")
 		history -w
-		history -c
-		HISTFILE="$HOME/.bash_history"
+		history -c # write and clear current history before restoring it to the default value
+		HISTFILE="$HOME/.bash_history" 2>/dev/null
 		history -r
 		set +x
 		exit 0

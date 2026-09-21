@@ -3,9 +3,9 @@
 function list() {
 	shopt -s nullglob
 
-	printf -- "|================================================================|\n"
-	printf -- "| %-12s | %-12s | %-12s | %-15s |\n" "NAME" "MODLOADER" "VERSION" "MODLOADER VERSION"
-	printf -- "|----------------------------------------------------------------|\n"
+	printf -- "|=======================================================================|\n"
+	printf -- "| %-16s | %-12s | %-14s | %-18s |\n" "NAME" "MODLOADER" "VERSION" "MODLOADER VERSION"
+	printf -- "|-----------------------------------------------------------------------|\n"
 
 	for Finst in "$SHdir"/instances/*.json; do
 		# jq mess to get every displayed info
@@ -15,15 +15,13 @@ function list() {
 		[ "$side" = null ] && side="client"
 
 		if [ "$side" = "client" ]; then
-			dispName="${GREEN}$name${RESET}"
+			printf -- "|${GREEN} %-16s ${RESET}| %-12s | %-14s | %-18s |\n" "$name" "$modloader" "$version" "${modloaderVersion:="None"}"
 		else
-			dispName="${CYAN}$name${RESET}"
+			printf -- "|${CYAN} %-16s ${RESET}| %-12s | %-14s | %-18s |\n" "$name" "$modloader" "$version" "${modloaderVersion:="None"}"
 		fi
-
-		printf -- "| %-12s | %-12s | %-12s | %-15s |\n" "$dispName" "$modloader" "$version" "$modloaderVersion"
 	done
 
-	printf -- "|================================================================|\n"
+	printf -- "|=======================================================================|\n"
 	shopt -u nullglob
 }
 
@@ -264,14 +262,14 @@ function helpPage() {
 	printf " - \"-c\" | \"--customGameDir\" : (incompatible with -a) Sets the games directory to the specified one\n"
 	printf " - \"-a\" | \"--anotherGameDir\" : (incompatible with -c) Sets the games directory to a generated one\n"
 	printf " - \"-u\" | \"--useInstance\" : specifies the instance that will be used. Override the selected instance\n"
-	printf " - \"-S\" | \"--server\" : manage server instead of clients\n"
+	printf " - \"-S\" | \"--server\" : manages servers instead of clients\n"
 }
 
 function modify() {
 	local targetInstance=${Sett[SelectedInstance]}
 	local setting=$1
 	local newValue=$2
-	[ "$targetInstance" = "None" ] && targetInstance=${parameter[useInstance]} # if it's empty, it will trow an error later, confusing but it works
+	[ "$targetInstance" = "None" ] && targetInstance=${parameter[useInstance]} # if it's empty, it will trow an error in the next block of code, confusing but it works
 
 	# check if what the user entered is actually valid
 	if [ -z "$setting" ]; then
