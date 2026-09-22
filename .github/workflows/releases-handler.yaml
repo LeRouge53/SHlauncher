@@ -7,6 +7,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 
 jobs:
@@ -31,11 +32,11 @@ jobs:
         cd source/ || echo "CD into source failed, if this is an old version, it's fine"
 
         tar -czf \
-          "dist/SHlauncher-${{ github.ref_name }}.tar.gz" \
+          "../dist/SHlauncher-${{ github.ref_name }}.tar.gz" \
           .
 
         zip -r \
-          "dist/SHlauncher-${{ github.ref_name }}.zip" \
+          "../dist/SHlauncher-${{ github.ref_name }}.zip" \
           .
         
     - name: Create GitHub Release
