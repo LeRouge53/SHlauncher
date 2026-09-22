@@ -19,6 +19,7 @@ function substituteArg() {
 
 	arg="${arg//'${natives_directory}'/$nativesDir}"
 	arg="${arg//'${library_directory}'/"$MCdir/libraries"}"
+	arg="${arg//'${root_directory}'/"$MCdir"}" # .minecraft (does not exist natively)
 	arg="${arg//'${classpath_separator}'/"$cmdSeparator"}"
 	[ "$modloader" != "vanilla" ] && arg="${arg//'${version_name}'/"${modloader}-${fullModLoaderVers}"}"
 
@@ -135,7 +136,7 @@ function launchServerVanilla() {
 	for arg in "${jvmArgs[@]}"; do
 		finalJvmArgs+=("$(substituteArg "$arg")")
 	done
-	log "DEBUG" "launch.sh:launch" "finalJVMArgs : ${finalJvmArgs[*]}"
+
 	finalGameArgs=()
 	for arg in "${gameArgs[@]}"; do
 		finalGameArgs+=("$(substituteArg "$arg")")
@@ -147,6 +148,7 @@ function launchServerVanilla() {
 		[[ "${finalGameArgs[*]}" =~ "--nogui" ]] || finalGameArgs+=("--nogui") # precise --nogui if it's not already there
 	fi
 
+	log "DEBUG" "launch.sh:launch" "finalJVMArgs : ${finalJvmArgs[*]}"
 	log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
 }
 
@@ -170,10 +172,10 @@ function launchServerNeoforge() {
 	log "DEBUG" "launch.sh:launch" "finalLaunchArgs : ${finalLaunchArgs[*]}"
 }
 
-function lauchServerFabric() {
+function launchServerFabric() {
 	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
 	finalJvmArgs+=("${additionalJvmArgs[@]}")
-n
+
 	IFS='|' read -r classpath inheritance mainClass < \
 		<(jq -r '"\(.moddedCp)|\(.inheritsFrom)|\(.mainClass)"' "$SHdir/versions/$versionProfile-server.json")
 	mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$versionProfile-server.json")
@@ -183,11 +185,20 @@ n
 		<(jq -r '"\(.runtime)"' "$SHdir/versions/$inheritance.json")
 	checkJava || return
 
+	finalJvmArgs+=("-cp" "$(substituteArg "${classpath}")")
+
+	for arg in "${moddedJvmArgs[@]}"; do
+		finalJvmArgs+=("$(substituteArg "$arg")")
+	done
+
 	if ${Sett[NoguiOnServer]}; then
 		[[ "${finalGameArgs[*]}" =~ "--nogui" ]] || finalGameArgs+=("--nogui")
 	fi
-	finalJvmArgs+=("${moddedJvmArgs[@]}" "-cp" "${classpath}")
+
 	finalGameArgs+=("${moddedGameArgs[@]}")
+
+	log "DEBUG" "launch.sh:launch" "finalJvmArgs : ${finalJvmArgs[*]}"
+	log "DEBUG" "launch.sh:launch" "finalGameArgs : ${finalGameArgs[*]}"
 }
 
 
@@ -292,6 +303,7 @@ function prepareLaunch() {
 				"vanilla")
 					launchServerVanilla "$launchProf" "$launchInst"
 					
+					printf "${BLUE_BOLD}Finished building command, launching server...${RESET}\n"
 					echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$versionProfile/$versionProfile-server.jar" "${finalGameArgs[@]}" > "$MCdir/.lastLaunchedGame"
 					"${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$versionProfile/$versionProfile-server.jar" "${finalGameArgs[@]}"
 					exitCode=$?
@@ -299,6 +311,7 @@ function prepareLaunch() {
 				"neoforge")
 					launchServerNeoforge "$launchProf" "$launchInst"
 
+					printf "${BLUE_BOLD}Finished building command, launching server...${RESET}\n"
 					echo "${java}" "${finalLaunchArgs[@]}" > "$MCdir/.lastLaunchedGame"
 					"${java}" @<(printf -- "%s\n" "${finalLaunchArgs[@]}") # Yes, that actually works
 					exitCode=$?
@@ -306,6 +319,7 @@ function prepareLaunch() {
 				"fabric")
 					launchServerFabric "$launchProf" "$launchInst"
 
+					printf "${BLUE_BOLD}Finished building command, launching server...${RESET}\n"
 					echo "${java}" "${finalJvmArgs[@]}" "${mainClass}" "${gameArgs[@]}" > "$MCdir/.lastLaunchedGame"
 					"${java}" "${finalJvmArgs[@]}" "${mainClass}" "${gameArgs[@]}"
 					exitCode=$?
@@ -349,7 +363,7 @@ function argHandler() {
 			usrn=$2
 			isDone=false
 			if [ "$usrn" == "" ]; then printf "${RED_BOLD}\"-p\" require the username of a created profile${RESET}\n"; return 2; fi
-			for Fprof in "$dir"/.minecraft/SHlauncher/profiles/*.json; do
+			for Fprof in "$SHdir"/profiles/*.json; do
 				if [ "$usrn" == "$(jq -r '.name' "$Fprof")" ]; then
 					launchProf=$usrn
 					customLaunchProf=true

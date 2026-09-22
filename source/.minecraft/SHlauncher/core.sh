@@ -177,6 +177,7 @@ function launchCommand() {
 		exit "$cmdExitCode"
 	fi
 }
+
 log "INFO" "core.sh" "Entering shell loop!"
 while true; do
 	IFS=$IFSBak
@@ -185,8 +186,11 @@ while true; do
 	else
 		dispExitCode=""
 	fi
+	
+	if ! read -erp "${dispExitCode}SHlauncher ${DispProf}:${DispInst}> " commandLine; then # command prompt, it is in an if statement to detect any EOF (ctrl+D) character
+		launchCommand exit
+	fi # that single if statement also allows to use "scripts" (group of commands) by doing "SHlauncher < afile.txt"
 
-	read -erp "${dispExitCode}SHlauncher ${DispProf}:${DispInst}> " commandLine # command prompt
 	# shellcheck disable=SC2086
 	[ -n "$commandLine" ] && launchCommand $commandLine
 done

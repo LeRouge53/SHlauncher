@@ -966,7 +966,8 @@ function install() {
 				inheritedClasspath=$(jq -r '.classpath' "$SHdir/versions/$inheritedVers.json")
 				classpath="${inheritedClasspath}${classpath}"
 			else
-				classpath="$MCdir/versions/$inheritedVers/$inheritedVers-server.jar${cmdSeparator}${classpath}"
+				classpath=${classpath//"libraries"/'${library_directory}'} # replace the absolute library path by one that will be modified at startup
+				classpath=":\${root_directory}/versions/$inheritedVers/$inheritedVers-server.jar${classpath}"
 			fi
 			
 			log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers"
