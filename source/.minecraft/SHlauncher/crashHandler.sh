@@ -4,7 +4,7 @@
 function terminate() {
 	history -w
 	history -c
-	HISTFILE="$HOME/.bash_history"
+	HISTFILE="$HOME/.bash_history" 2>/dev/null # sometimes (this function can be called before HISTFILE is set. and it creates useless log)
 	history -r
 	set +x
 }

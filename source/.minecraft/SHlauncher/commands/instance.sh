@@ -1,29 +1,55 @@
 # shellcheck disable=SC2154
 
 function list() {
-	if [ "$(ls "$SHdir/instances")" == "" ]; then # give me a better solution..
-		printf "${YELLOW}No Instances were set up (yet!)${RESET}\n"
-	else
-		for Finst in "$SHdir"/instances/*.json; do
-			log "DEBUG" "settings.sh:list" "Checking instance \"${Finst}\""
-			# jq mess to get every displayed info
-			IFS='|' read -r side name version modloader gameDir java MinRam MaxRam modloaderVersion <<< \
-				"$(jq -r '"\(.side)|\(.name)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$Finst")"
-			mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$Finst")
-			mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
+	shopt -s nullglob
 
-			printf "${BLUE_BOLD}%s :${RESET}\n" "$name"
-			echo " - Version (version): $version"
-			echo " - Side (side): $side"
-			echo " - Modloader (modloader - modloaderVersion): $modloader $modloaderVersion"
-			echo " - Game directory (gameDir): $gameDir"
-			echo " - Java (java): $java"
-			echo " - Minimal amount of RAM (MinRam): $MinRam"
-			echo " - Maximal amount of RAM (MaxRam): $MaxRam"
-			echo " - Additional JVM arguments (additionalJvmArgs): \"${additionalJvmArgs[*]}\""
-			echo " - Additional game arguments (customGameArgs): \"${customGameArgs[*]}\""
-		done
+	printf -- "|=======================================================================|\n"
+	printf -- "| %-16s | %-12s | %-14s | %-18s |\n" "NAME" "MODLOADER" "VERSION" "MODLOADER VERSION"
+	printf -- "|-----------------------------------------------------------------------|\n"
+
+	for Finst in "$SHdir"/instances/*.json; do
+		# jq mess to get every displayed info
+		IFS='|' read -r side name version modloader modloaderVersion < \
+			<(jq -r '"\(.side)|\(.name)|\(.version)|\(.modloader)|\(.modloaderVersion)"' "$Finst")
+
+		[ "$side" = null ] && side="client"
+
+		if [ "$side" = "client" ]; then
+			printf -- "|${GREEN} %-16s ${RESET}| %-12s | %-14s | %-18s |\n" "$name" "$modloader" "$version" "${modloaderVersion:="None"}"
+		else
+			printf -- "|${CYAN} %-16s ${RESET}| %-12s | %-14s | %-18s |\n" "$name" "$modloader" "$version" "${modloaderVersion:="None"}"
+		fi
+	done
+
+	printf -- "|=======================================================================|\n"
+	shopt -u nullglob
+}
+
+function fetch() {
+	local name=${parameter[useInstance]}
+	[ -z "$name" ] && name=${Sett[SelectedInstance]} # replace it by the selected instance if it's empty
+
+	if [ "$name" == "None" ]; then
+		printf "${RED_BOLD}No instances were specified, type \"instance help\"${RESET}\n"
+		return 2
 	fi
+
+	# jq mess to get every displayed info
+	IFS='|' read -r side version modloader gameDir java MinRam MaxRam modloaderVersion < \
+		<(jq -r '"\(.side)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$SHdir/instances/$name.json")
+	mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$name.json")
+	mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$name.json")
+
+	printf "${BLUE_BOLD}%s :${RESET}\n" "$name"
+	echo " - Version (version): $version"
+	echo " - Side (side): $side"
+	echo " - Modloader (modloader - modloaderVersion): $modloader $modloaderVersion"
+	echo " - Game directory (gameDir): $gameDir"
+	echo " - Java (java): $java"
+	echo " - Minimal amount of RAM (MinRam): $MinRam"
+	echo " - Maximal amount of RAM (MaxRam): $MaxRam"
+	echo " - Additional JVM arguments (additionalJvmArgs): \"${additionalJvmArgs[*]}\""
+	echo " - Additional game arguments (customGameArgs): \"${customGameArgs[*]}\""
 }
 
 function SetColor() {
@@ -222,27 +248,28 @@ function reset() {
 }
 
 function helpPage() {
-	printf "${CYAN}Usage${RESET} : instance [-cua] <instruction> [<args...>]\n"
+	printf "${CYAN}Usage${RESET} : instance [-cuaS] <instruction> [<args...>]\n"
 	printf "Manages the instances of the launcher\n"
 	printf "${CYAN}Argument list${RESET} :\n"
 	printf " - create [-ca] <instance name> <modloader name> <vanilla version> [modloader version] : Creates an instance\n"
-	printf " - modify <-u> <parameter> <new value> : modifies an instance, uses the selected instance if none are specified\n"
+	printf " - modify [-u] <parameter> <new value> : modifies an instance, uses the selected instance if none are specified\n"
 	printf " - remove [-u] OR <instance name> : Deletes an instance\n"
 	printf " - list : Lists every created instances alongside their parameter (display name and key). the key is used to modify the value with \"instance modify\"\n"
+	printf " - fetch [-u] : List detailed information about one instance ; uses the selected instance if none are specified\n"
 	printf " - select [-u] OR <instance name> : Select an instance to use\n"
 	printf " - reset : Deselect the current instance (switching it to None)\n"
 	printf " - help : Prints this help\n"
 	printf " - \"-c\" | \"--customGameDir\" : (incompatible with -a) Sets the games directory to the specified one\n"
 	printf " - \"-a\" | \"--anotherGameDir\" : (incompatible with -c) Sets the games directory to a generated one\n"
-	printf " - \"-u\" | \"--useInstance\" : specifies the instance that will be tampered"
-	printf " - \"-S\" | \"--server\" : manage server instead of clients"
+	printf " - \"-u\" | \"--useInstance\" : specifies the instance that will be used. Override the selected instance\n"
+	printf " - \"-S\" | \"--server\" : manages servers instead of clients\n"
 }
 
 function modify() {
 	local targetInstance=${Sett[SelectedInstance]}
 	local setting=$1
 	local newValue=$2
-	[ "$targetInstance" = "None" ] && targetInstance=${parameter[useInstance]} # if it's empty, it will trow an error later, confusing but it works
+	[ "$targetInstance" = "None" ] && targetInstance=${parameter[useInstance]} # if it's empty, it will trow an error in the next block of code, confusing but it works
 
 	# check if what the user entered is actually valid
 	if [ -z "$setting" ]; then
@@ -346,6 +373,11 @@ function argHandler() {
 		"modify")
 			shift
 			modify "$@"
+			ExitCode=$?
+		;;
+		"fetch")
+			shift
+			fetch "$@"
 			ExitCode=$?
 		;;
 		"help")
