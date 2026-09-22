@@ -28,7 +28,7 @@ jobs:
 
         cp README.MD source/
         cp CHANGELOG source/
-        cd source/
+        cd source/ || echo "CD into source failed, if this is an old version, it's fine"
 
         tar -czf \
           "dist/SHlauncher-${{ github.ref_name }}.tar.gz" \
