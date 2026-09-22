@@ -18,7 +18,7 @@ fi
 log "DEBUG" "core.sh" "Started loading display profile"
 # alot of chaos there, but it sets colors in the prompt string based on the profile
 if [ "${Sett[SelectedProfile]}" == "None" ]; then
-	log "WARN" "core.sh" "Display profile was resolved to None"
+	log "INFO" "core.sh" "Display profile was resolved to None"
 	DispProf="${RL_START}${RED}${RL_END}${Sett[SelectedProfile]}${RL_START}${RESET}${RL_END}"
 else
 	profile=$(jq -r '.name' "$SHdir/profiles/${Sett[SelectedProfile]}.json")
@@ -34,7 +34,9 @@ log "DEBUG" "core.sh" "Started loading display instance"
 # same but for the instance
 if [ "${Sett[SelectedInstance]}" == "None" ]; then 
 	DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
-	log "WARN" "core.sh" "Display instance was resolved to None"
+	log "INFO" "core.sh" "Display instance was resolved to None"
+elif [ "$(jq -r '.side' "$SHdir/instances/${Sett[SelectedInstance]}.json")" = "server" ]; then
+	DispInst="${RL_START}${CYAN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 else
 	DispInst="${RL_START}${GREEN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	log "INFO" "core.sh" "Display profile was resolved to \"${Sett[SelectedInstance]}\""
@@ -50,7 +52,8 @@ function commandLineHandler() {
 		printf "${YELLOW_BOLD}[BUG]${YELLOW} Function commandLineHandler require 1 arguments but it is missing! Check the log file for more info${RESET}\n"
 		log "ERROR" "core.sh:commandLineHandler" "BUG : Some argument are missing. Expected argument: commandLine \"$commandLine\""
 	fi
-	if [ "$*" != "" ] || [ "$lastCommandLine" != "$*" ]; then
+
+	if [ "$*" != "" ] || [ "$lastCommandLine" != "$*" ]; then # this never worked and I don't know why.
 		history -s -- "$*"
 	fi
 	lastCommandLine="$*"
@@ -60,8 +63,8 @@ function commandLineHandler() {
 	case "$cmd" in
 	"exit")
 		history -w
-		history -c
-		HISTFILE="$HOME/.bash_history"
+		history -c # write and clear current history before restoring it to the default value
+		HISTFILE="$HOME/.bash_history" 2>/dev/null
 		history -r
 		set +x
 		exit 0
@@ -107,34 +110,9 @@ function commandLineHandler() {
 		cmdExitCode=$?
 	;;
 	"ror")
-		case "$1" in
-			"ror")
-				log "ERROR" "ror.sh" "command is Return on return, can't operate"
-				printf "${RED_BOLD}Please don't use the return on return command with itself"
-				return 2
-			;;
-			"help")
-				printf "${CYAN}Usage :${RESET} ror <command>\n"
-				printf "Executes the provided command and exit the launcher afterwards\n"
-				printf "to actually use help as a command, enter \"\\help\"\n"
-				return
-			;;
-			'\help')
-				commandLineHandler "help"
-			;;
-			"")
-				printf "${RED_BOLD}A command is required, type \"ror help\""
-			;;
-			*)
-				commandLineHandler "$@"
-		esac
-
-		history -w
-		history -c
-		HISTFILE="$HOME/.bash_history"
-		history -r
-		set +x
-		exit "$cmdExitCode"
+		# shellcheck source=commands/ror.sh
+		source "$cmdDir/ror.sh" "$@"
+		cmdExitCode=$?
 	;;
 	"help")
 		# shellcheck source=commands/about.sh
@@ -199,6 +177,7 @@ function launchCommand() {
 		exit "$cmdExitCode"
 	fi
 }
+
 log "INFO" "core.sh" "Entering shell loop!"
 while true; do
 	IFS=$IFSBak
@@ -207,9 +186,11 @@ while true; do
 	else
 		dispExitCode=""
 	fi
+	
+	if ! read -erp "${dispExitCode}SHlauncher ${DispProf}:${DispInst}> " commandLine; then # command prompt, it is in an if statement to detect any EOF (ctrl+D) character
+		launchCommand exit
+	fi # that single if statement also allows to use "scripts" (group of commands) by doing "SHlauncher < afile.txt"
 
-	log "INFO" "core.sh" "Displaying shell"
-	read -erp "${dispExitCode}SHlauncher ${DispProf}:${DispInst}> " commandLine # command prompt
 	# shellcheck disable=SC2086
-	launchCommand $commandLine
+	[ -n "$commandLine" ] && launchCommand $commandLine
 done

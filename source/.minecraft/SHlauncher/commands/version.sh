@@ -5,25 +5,34 @@ cd "$MCdir" || source "$SHdir/crashHandler.sh" CD_FAIL
 function fabricManifestDownloader() {
 	local gameVers=$1
 	local loaderVers=$2
-	local noPrint=$3
+	local silent=$3
+	local server=$4
 	log "DEBUG" "version.sh:fabricManifestDownloader" "starting with $gameVers $loaderVers"
 	if [ -z "$gameVers" ]; then
 		printf "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function fabricManifestDownloader require 2 arguments but some are missing! Check the log file for more info \n" >&2
-		log "ERROR" "version.sh:fabricManifestDownloader" "BUG : Some argument are missing. Expected argument: gameVers \"$gameVers\", loaderVers (optional) \"$loaderVers\""
+		log "ERROR" "version.sh:fabricManifestDownloader" "BUG : Some argument are missing. Expected argument: gameVers \"$gameVers\", loaderVers (optional) \"$loaderVers\", silent (optional) \"$silent\", server (optional) \"$server\""
 		return 2
 	fi
 	
-	case $noPrint in
+	case $silent in
 		"true")
-			noPrint=true
+			silent=true
 		;;
 		*)
-			noPrint=false
+			silent=false
+	esac
+
+	case $server in
+		"true")
+			server=true
+		;;
+		*)
+			server=false
 	esac
 
 	if ! $onlineMode; then
-		$noPrint || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n" >&2
-		return 1
+		$silent || printf "${RED}Can't download the fabric manifest, you are in offline mode${RESET}\n" >&2
+		return 3
 	fi
 
 	if [ -z "$loaderVers" ]; then
@@ -32,16 +41,22 @@ function fabricManifestDownloader() {
 			cat "$SHdir/manifests/temp_manifest.json" > "$SHdir/manifests/fabric/$gameVers/$gameVers.json"
 		else
 			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch fabric compatibility for game version \"$gameVers\"; version is invalid or unsupported by fabric"
-			$noPrint || printf "${RED}The specified minecraft version ($gameVers) is invalid or not supported by fabric${RESET}\n" >&2
+			$silent || printf "${RED}The specified minecraft version ($gameVers) is invalid or not supported by fabric${RESET}\n" >&2
 			return 1
 		fi
 	else
 		mkdir -p "$MCdir/versions/fabric-$gameVers-$loaderVers"
-		if curl -fsL "https://meta.fabricmc.net/v2/versions/loader/$gameVers/$loaderVers/profile/json" | jq '.' > "$SHdir/manifests/temp_manifest.json"; then
-			cat "$SHdir/manifests/temp_manifest.json" > "$MCdir/versions/fabric-$gameVers-$loaderVers/fabric-$gameVers-$loaderVers.json"
+		url=https://meta.fabricmc.net/v2/versions/loader/$gameVers/$loaderVers/profile/json
+		$server && url=https://meta.fabricmc.net/v2/versions/loader/$gameVers/$loaderVers/server/json # if $server is true, then we change the URL to download the server manifest instead
+
+		finalFileName=fabric-$gameVers-$loaderVers.json
+		$server && finalFileName=fabric-$gameVers-$loaderVers-server.json # same there
+
+		if curl -fsL "$url" | jq '.' > "$SHdir/manifests/temp_manifest.json"; then
+			cat "$SHdir/manifests/temp_manifest.json" > "$MCdir/versions/fabric-$gameVers-$loaderVers/$finalFileName"
 		else
 			log "ERROR" "version.sh:fabricManifestDownloader" "Failed to fetch game version \"$gameVers\" with loader \"$loaderVers\"; version is invalid or unsupported by fabric"
-			$noPrint || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid or unsupported by fabric${RESET}\n" >&2
+			$silent || printf "${RED}The specified minecraft version ($gameVers) combined with the specified loader ($loaderVers) is invalid or unsupported by fabric${RESET}\n" >&2
 			return 1
 		fi
 	fi
@@ -49,7 +64,8 @@ function fabricManifestDownloader() {
 }
 
 function install() {
-	side="client" # only supported side for the moment, we'll see that later
+	side="client" 
+	${parameter[server]} && side="server" # else stays it stays client
 	declare -g outputCp
 
 	function installLib() {
@@ -291,15 +307,33 @@ function install() {
 			versionJson="$versDir/$targetVers/$targetVers.json"
 
 			curl --retry 5 --retry-delay 2 -s "$url" | jq '.' > "$versionJson"
-			curl --retry 5 --retry-delay 2 -o "$versDir/$targetVers/$targetVers.jar" "$(jq -r '.downloads.client.url' "$versionJson")" &>/dev/null
 
-			hash=$(sha1sum "$versDir/$targetVers/$targetVers.jar" | awk '{print $1}')
-			if [ "$hash" != "$(jq -r '.downloads.client.sha1' "$versionJson")" ]; then
+			local success=false # temporary variable used to validate the hash (you'll understand 10 lines later)
+			if ! ${parameter[server]}; then
+				# if side is client
+				curl --retry 5 --retry-delay 2 -Sso "$versDir/$targetVers/$targetVers.jar" "$(jq -r '.downloads.client.url' "$versionJson")" &>/dev/null
+				actualHash=$(sha1sum "$versDir/$targetVers/$targetVers.jar" | awk '{print $1}')
+				targetHash=$(jq -r '.downloads.client.sha1' "$versionJson")
+				[ "$actualHash" = "$targetHash" ] \
+					&& success=true; true \
+					|| log "ERROR" "version.sh:install" "Failed to compare hash. expected \"$(jq -r '.downloads.client.sha1' "$versionJson")\" but got \"$(sha1sum "$versDir/$targetVers/$targetVers.jar" | awk '{print $1}')\""
+			else
+				# if side is server
+				curl --retry 5 --retry-delay 2 -Sso "$versDir/$targetVers/$targetVers-server.jar" "$(jq -r '.downloads.server.url' "$versionJson")"
+				actualHash=$(sha1sum "$versDir/$targetVers/$targetVers-server.jar" | awk '{print $1}')
+				targetHash=$(jq -r '.downloads.server.sha1' "$versionJson")
+				[ "$actualHash" = "$targetHash" ] \
+					&& success=true; true \
+					|| log "ERROR" "version.sh:install" "Failed to compare hash. expected \"$(jq -r '.downloads.server.sha1' "$versionJson")\" but got \"$(sha1sum "$versDir/$targetVers/$targetVers-server.jar" | awk '{print $1}')\""
+			fi
+			# the final "true" command is used so in this "A && B || C" statement, C will not execute if B fails
+
+			if ! $success; then
 				printf "${YELLOW}Failed to download the game: mismatched hash\n"
 				printf "${RED}Error is non recoverable : please retry${RESET}\n"
-				command -p rm -r -- "${versDir:?}/$targetVers"
 				return 2
 			fi
+			unset -v success # temporary as I said
 		;;
 		"neoforge")
 			function NeoArgSubstitute() {
@@ -356,23 +390,31 @@ function install() {
 			fi
 
 			if ! unzip -p "$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar" version.json > "$versionJson"; then
-				printf "${RED_BOLD}Unzip of the version.json from the installer failed\n"
+				printf "${RED_BOLD}The unpack of version.json from the installer failed!\n"
 				printf "Error is non recoverable. Please retry${RESET}\n"
 				log "ERROR" "version.sh:install" "Install aborted, unzip of version.json failed"
 				return 1
 			fi
 			if ! unzip -p "$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar" install_profile.json > "$installDir/install_profile.json"; then
-				printf "${RED_BOLD}Unzip of the install_profile.json from the installer failed\n"
+				printf "${RED_BOLD}The unpack of install_profile.json from the installer failed!\n"
 				printf "Error is non recoverable. Please retry${RESET}\n"
 				log "ERROR" "version.sh:install" "Install aborted, unzip of install_profile.json failed"
 				return 1
 			fi
 
 			inheritedVers=$(jq -r '.inheritsFrom' "$versionJson")
-			if ! [[ -f "$versDir/$inheritedVers/$inheritedVers.jar" ]]; then
-				printf "${RED_BOLD}The requested version inherits part of his content from the vanilla $inheritedVers version, please install it first${RESET}\n"
-				log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
-				return 1
+			if ! ${parameter[server]}; then
+				if ! [[ -f "$versDir/$inheritedVers/$inheritedVers.jar" ]]; then
+					printf "${RED_BOLD}The requested version inherits part of his content from the vanilla $inheritedVers version, please install it first${RESET}\n"
+					log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
+					return 1
+				fi
+			else
+				if ! [[ -f "$versDir/$inheritedVers/$inheritedVers-server.jar" ]]; then
+					printf "${RED_BOLD}The requested version inherits part of his content from the vanilla \"$inheritedVers\" server version, please install it first${RESET}\n"
+					log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
+					return 1
+				fi
 			fi
 
 			local isDone=false
@@ -400,8 +442,11 @@ function install() {
 			declare -A installVars
 			installVars["ROOT"]="$MCdir" 
 			installVars["INSTALLER"]="$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar"
-			installVars["SIDE"]="$side" # client only
+			installVars["SIDE"]="$side"
+			
 			installVars["MINECRAFT_JAR"]="$versDir/$inheritedVers/$inheritedVers.jar" # vanilla jar file
+			${parameter[server]} && installVars["MINECRAFT_JAR"]="$versDir/$inheritedVers/$inheritedVers-server.jar"
+			
 			installVars["MINECRAFT_VERSION"]="$targetVers" # game version 
 			installVars["LIBRARY_DIR"]="$MCdir/libraries/"
 			installVars["VERSION_JSON"]="$versDir/$inheritedVers/$inheritedVers.json" # vanilla game JSON
@@ -419,8 +464,7 @@ function install() {
 				fi
 				installVars["$datName"]="$datVal"
 			done < <(jq -r --arg side "$side" ' 
-				.data | to_entries[] | 
-				"\(.key)|\(.value.[$side])"
+				.data | to_entries[] | "\(.key)|\(.value.[$side])"
 			' "$installDir/install_profile.json")
 
 			while IFS= read -r proc; do
@@ -442,7 +486,7 @@ function install() {
 				printf "${BLUE_BOLD}executing processor %s...${RESET}\n" "$jar"
 
 				# shellcheck source=../crashHandler.sh
-				cd "./libraries" || source "$SHdir/crashHandler.sh" "CD_FAIL"
+				cd "$MCdir/libraries" || source "$SHdir/crashHandler.sh" "CD_FAIL"
 				log "INFO" "version.sh:install" "Starting processor \"$jar\""
 				if ! "${localJava}" "-Xms64M" "-Xmx2G" "-cp" "${finalInstallCp}" "${installMainClass}" "${procArgs[@]}"; then
 					printf "${RED_BOLD}Processor %s failed to execute\n" "$jar"
@@ -453,6 +497,7 @@ function install() {
 				# shellcheck source=../crashHandler.sh
 				cd .. || source "$SHdir/crashHandler.sh" "CD_FAIL"
 			done < <(jq -c --arg side "$side" '.processors[] | . as $proc | ( if $proc.sides == null or ($side | IN($proc.sides[])) then $proc else empty end )' "$installDir/install_profile.json")
+			
 			rm "$versDir/neoforge-$fullModLoaderVers/"*-installer.jar*
 			rm -r -- "$installDir"
 			log "INFO" "version.sh:install" "Processor execution complete"
@@ -467,17 +512,30 @@ function install() {
 			log "INFO" "version.sh:install" "Requested download of version $targetVers $modlVers"
 			fullModLoaderVers="${targetVers}-${modlVers}"
 			versionJson="$versDir/fabric-$fullModLoaderVers/fabric-${fullModLoaderVers}.json"
-			if ! fabricManifestDownloader "$targetVers" "$modlVers"; then
-				printf "${RED_BOLD}Failed to get the manifest, cannot continue installation${RESET}\n"
-				log "WARN" "version.sh:install" "cannot continue installation"
-				return 1
+			${parameter[server]} && versionJson="$versDir/fabric-$fullModLoaderVers/fabric-${fullModLoaderVers}-server.json"
+			
+			if ! [ -f "$versionJson" ]; then
+				if ! fabricManifestDownloader "$targetVers" "$modlVers" "false" "${parameter[server]}"; then
+					printf "${RED_BOLD}Failed to get the manifest, cannot continue installation${RESET}\n"
+					log "WARN" "version.sh:install" "cannot continue installation"
+					return 1
+				fi
 			fi
 
 			inheritedVers=$(jq -r '.inheritsFrom' "$versionJson")
-			if ! [ -f "$versDir/$inheritedVers/$inheritedVers.jar" ]; then
-				printf "${RED_BOLD}The requested version inherits part of his content from the vanilla $inheritedVers version, please install it first${RESET}\n"
-				log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
-				return 1
+
+			if ! ${parameter[server]}; then
+				if ! [ -f "$versDir/$inheritedVers/$inheritedVers.jar" ]; then
+					printf "${RED_BOLD}The requested version inherits part of his content from the vanilla \"$inheritedVers\" version, please install it first${RESET}\n"
+					log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
+					return 1
+				fi
+			else
+				if ! [ -f "$versDir/$inheritedVers/$inheritedVers-server.jar" ]; then
+					printf "${RED_BOLD}The requested version inherits part of his content from the vanilla \"$inheritedVers\" server version, please install it first${RESET}\n"
+					log "ERROR" "version.sh:install" "Failed to install $fullModLoaderVers, required inheritance not found ($targetVers)"
+					return 1
+				fi
 			fi
 		;;
 	esac
@@ -491,12 +549,16 @@ function install() {
 
 	case $modloader in
 		"vanilla")
-			log "INFO" "version.sh:install" "Installing game libraries..."
-			installLib "$versionJson" "libraries"
-			classpath=$outputCp
-			client="versions/${targetVers}/${targetVers}.jar"
-			classpath="${classpath}${cmdSeparator}${client}"
-			log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
+			if ! ${parameter[server]}; then
+				log "INFO" "version.sh:install" "Installing game libraries..."
+				installLib "$versionJson" "libraries"
+				classpath=$outputCp
+				client="versions/${targetVers}/${targetVers}.jar"
+				classpath="${classpath}${cmdSeparator}${client}"
+				log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
+			else
+				printf "${GREEN_BOLD}Skipping library download as it is unrequired for servers${RESET}\n"
+			fi
 		;;
 		"neoforge")
 			printf "${BLUE_BOLD}Merging vanilla and modded library list${RESET}\n"
@@ -506,6 +568,9 @@ function install() {
 			local newLib
 			newLib="$versDir/neoforge-${fullModLoaderVers}/libraries.json"
 
+			# This piece of jq code merges the vanilla and modded libraries together. it's easier to download 
+			#	them all at once than to assume they are already there (and try to put them in the classpath)
+			# NB : An already downloaded library will be skipped by installLib()
 			jq -s '
 				def libkey:
 					(.name | sub("@jar$";"") | split(":")) as $p
@@ -521,55 +586,56 @@ function install() {
 
 			log "INFO" "version.sh:install" "Installing game libraries..."
 			installLib "$newLib" "libraries"
-			classpath=$outputCp
 			command -p rm "$newLib"
+			if ! ${parameter[server]}; then
+				classpath=$outputCp
 
-			client="libraries/${procArgs[$newIndex]}"
-
-			# the following section is used to clean the classpath from things that are already in the module path
-			# if elements from the module path gets into the classpath, we get a weird crash when launching
+				# the following section is used to clean the classpath from things that are already in the module path
+				# if elements from the module path gets into the classpath, we get a weird crash when launching
 			
-			local tempArgs
-			mapfile -t tempArgs < <(jq -r '.arguments.jvm[]' "$versionJson")
-			for (( i=0; i<${#tempArgs[@]}; i++ )); do
-				# find the module path
-				if [ "${tempArgs[i]}" == "-p" ]; then
-					newIndex=$((i+1)) # take it
-					break
-				fi
-			done
-			tempArgs[newIndex]=${tempArgs[newIndex]//'${library_directory}'/"libraries"} # parse it
-			tempArgs[newIndex]=${tempArgs[newIndex]//'${classpath_separator}'/"${cmdSeparator}"}
-			mapfile -td "${cmdSeparator}" CPInAnArray < <(printf '%s' "$classpath")
-			mapfile -td "${cmdSeparator}" delete < <(printf '%s' "${tempArgs[$newIndex]}") # and use it to clean the classpath
-
-			delete+=("versions/$inheritedVers/$inheritedVers.jar")
-			for target in "${delete[@]}"; do
-				for (( i=0; i<${#CPInAnArray[@]}; i++ )); do
-					if [ "${CPInAnArray[i]}" == "$target" ]; then
-						unset 'CPInAnArray[i]'
+				local tempArgs
+				mapfile -t tempArgs < <(jq -r '.arguments.jvm[]' "$versionJson")
+				for (( i=0; i<${#tempArgs[@]}; i++ )); do
+					# find the module path
+					if [ "${tempArgs[i]}" == "-p" ]; then
+						newIndex=$((i+1)) # take it
+						break
 					fi
 				done
-			done
-			# now rebuild it and clean the empty spots
-			local new=()
-			for e in "${CPInAnArray[@]}"; do
-				[[ -n "$e" ]] && new+=("$e")
-			done
-			IFS="${cmdSeparator}" classpath="${new[*]}"; IFS=$IFSBak
-			unset -v new
-			unset -v CPInAnArray
-			unset -v tempArgs
-			unset -v newIndex
-	;;
-	"fabric")
-		log "INFO" "version.sh:install" "Installing game libraries..."
-		installFabricLib "$versionJson" "libraries"
-		classpath=$outputCp 
-		log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
+				tempArgs[newIndex]=${tempArgs[newIndex]//'${library_directory}'/"libraries"} # parse it
+				tempArgs[newIndex]=${tempArgs[newIndex]//'${classpath_separator}'/"${cmdSeparator}"}
+				mapfile -td "${cmdSeparator}" CPInAnArray < <(printf '%s' "$classpath") # fun fact : "here documents" ("<<<") adds a newline character. I lost days because of that
+				mapfile -td "${cmdSeparator}" delete < <(printf '%s' "${tempArgs[$newIndex]}") # and use it to clean the classpath
+
+				delete+=("versions/$inheritedVers/$inheritedVers.jar")
+				for target in "${delete[@]}"; do
+					for (( i=0; i<${#CPInAnArray[@]}; i++ )); do
+						if [ "${CPInAnArray[i]}" == "$target" ]; then
+							unset 'CPInAnArray[i]'
+						fi
+					done
+				done
+				# now rebuild the classpath and clean the empty spots
+				local new=()
+				for e in "${CPInAnArray[@]}"; do
+					[[ -n "$e" ]] && new+=("$e")
+				done
+				IFS="${cmdSeparator}" classpath="${new[*]}"; IFS=$IFSBak
+				unset -v new
+				unset -v CPInAnArray
+				unset -v tempArgs
+				unset -v newIndex
+			fi
+		;;
+		"fabric")
+			log "INFO" "version.sh:install" "Installing game libraries..."
+			installFabricLib "$versionJson" "libraries"
+			classpath=$outputCp 
+			log "DEBUG" "version.sh:install" "classpath is \"$classpath\""
+		;;
 	esac
 
-	if [ "$modloader" == "vanilla" ]; then
+	if ! ${parameter[server]} && [ "$modloader" == "vanilla" ]; then
 		mkdir -p SHlauncher/log4jconf
 		read -r url sha1 name < <(jq -r '.logging.client.file | . as $log | "\($log.url) \($log.sha1) \($log.id)"' "$versionJson")
 		if [ "$name" != "null" ] && [ "$name" != "" ]; then 
@@ -599,7 +665,6 @@ function install() {
 			mkdir -p "$assetDir/objects"
 			mkdir -p "$assetDir/indexes"
 			read -r id url < <(jq -r '. | "\(.assetIndex.id) \(.assetIndex.url)"' "$versionJson")
-			#printf '%q\n' -- note for later
 			curl --fail --retry 5 --retry-delay 2 -s "$url"  | jq '.' > "$assetDir/indexes/$id.json"
 
 			function parallelDownload() {
@@ -732,13 +797,12 @@ function install() {
 				return "$?"
 			fi
 			rm ./assets.todo
-		else # fin dsa
+		else # dsa
 			printf "${YELLOW}DebugSkipAssets on, asset download skipped${RESET}\n"
 			log "WARN" "version.sh:install" "Asset download was skipped due to a debug action, final JSON may be broken"
 		fi
-	else # c'est la fin du vanilla only
+	else # non vanilla and server versions
 		printf "${GREEN_BOLD}Skipping asset download as it is unrequired for this version${RESET}\n"
-		log "INFO" "version.sh:install" "Assets download is unrequired when downloading a modloader"
 	fi
 
 	echo "Saving progress"
@@ -810,12 +874,12 @@ function install() {
 		fi
 	}
 
-	# check format
+	# check the game argument format
 	hasArgs=$(jq 'has("arguments")' "$versionJson")
 	if [[ "$hasArgs" == "true" ]]; then
-		jsonFormatIsModern=true  # 1.13+
+		jsonFormatIsModern=true  # 1.13+ (".arguments.game" string array)
 	else
-		jsonFormatIsModern=false # before 1.13 : (minecraftArguments)
+		jsonFormatIsModern=false # before 1.13 : (".minecraftArguments" string key)
 	fi
 
 	log "INFO" "version.sh:install" "Saving version..."
@@ -823,60 +887,91 @@ function install() {
 	jvmArgs=()
 	case $modloader in 
 		"vanilla")
-			jvmArgs+=("$(jq -r '.logging.client.argument' "$versionJson")")
-			while IFS= read -r entry; do
-				while IFS= read -r val; do
-					jvmArgs+=("$val")
-				done < <(evaluateArgEntry "$entry" "$(detect_os)" "" "$(detect_arch)")
-			done < <(jq -c '((.arguments["default-user-jvm"] // []) + (.arguments.jvm // []))[]' "$versionJson")
-			delete=("-Xms2G" "-Xmx4G")
-			for target in "${delete[@]}"; do
-				for i in "${!jvmArgs[@]}"; do
-					if [ "${jvmArgs[i]}" == "$target" ]; then
-						unset 'jvmArgs[i]'
-					fi
+			if ! ${parameter[server]}; then
+				jvmArgs+=("$(jq -r '.logging.client.argument' "$versionJson")")
+				while IFS= read -r entry; do
+					while IFS= read -r val; do
+						jvmArgs+=("$val")
+					done < <(evaluateArgEntry "$entry" "$(detect_os)" "" "$(detect_arch)")
+				done < <(jq -c '((.arguments["default-user-jvm"] // []) + (.arguments.jvm // []))[]' "$versionJson")
+				delete=("-Xms2G" "-Xmx4G")
+				for target in "${delete[@]}"; do
+					for i in "${!jvmArgs[@]}"; do
+						if [ "${jvmArgs[i]}" == "$target" ]; then
+							unset 'jvmArgs[i]'
+						fi
+					done
 				done
-			done
-			runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versionJson")"
-			if $jsonFormatIsModern; then
-				gameArgsJson=$(jq '
-					.arguments.game
-					| map(select(type == "string"))
-				' "$versionJson")
+				runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versionJson")"
+				if $jsonFormatIsModern; then
+					gameArgsJson=$(jq '
+						.arguments.game
+						| map(select(type == "string"))
+					' "$versionJson")
+				else
+					gameArgs=$(jq -r '.minecraftArguments' "$versionJson")
+					read -ra gameArgs <<< "$gameArgs"
+					gameArgsJson="[]"
+					for current in "${gameArgs[@]}"; do
+						gameArgsJson=$(echo "$gameArgsJson"| jq --arg current "$current" '. += [$current]') 
+					done
+					# shellcheck disable=SC2016
+					read -ra jvmArgs <<< '-Djava.library.path=${natives_directory} -Dminecraft.launcher.brand=${launcher_name} -Dminecraft.launcher.version=${launcher_version} -Dlog4j.configurationFile=${path} -cp ${classpath} ${mainClass}'
+					jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -R . | jq -s .)
+				fi
+				log "INFO" "version.sh:install" "Ready to save $targetVers.json"
 			else
-				gameArgs=$(jq -r '.minecraftArguments' "$versionJson")
-				read -ra gameArgs <<< "$gameArgs"
-				gameArgsJson="[]"
-				for current in "${gameArgs[@]}"; do
-					gameArgsJson=$(echo "$gameArgsJson"| jq --arg current "$current" '. += [$current]') 
-				done
-				# shellcheck disable=SC2016
-				read -ra jvmArgs <<< '-Djava.library.path=${natives_directory} -Dminecraft.launcher.brand=${launcher_name} -Dminecraft.launcher.version=${launcher_version} -Dlog4j.configurationFile=${path} -cp ${classpath} ${mainClass}'
+				jvmArgs+=("-DbundlerRepoDir=$MCdir/libraries")
 				jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -R . | jq -s .)
+				runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versionJson")"
 			fi
-			log "INFO" "version.sh:install" "Ready to save $targetVers.json"
 		;;
 		"neoforge")
-			while IFS= read -r entry; do
-				while IFS= read -r val; do
-					jvmArgs+=("$val")
-				done < <(evaluateArgEntry "$entry" "$osName" "" "$(detect_arch)")
-			done < <(jq -c '.arguments.jvm[]' "$versionJson")
+			if ! ${parameter[server]}; then
+				while IFS= read -r entry; do
+					while IFS= read -r val; do
+						jvmArgs+=("$val")
+					done < <(evaluateArgEntry "$entry" "$osName" "" "$(detect_arch)")
+				done < <(jq -c '.arguments.jvm[]' "$versionJson")
 
-			gameArgsJson=$(jq '.arguments.game' "$versionJson")
-			log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers.json"
+				gameArgsJson=$(jq '.arguments.game' "$versionJson")
+				log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers.json"
+			else
+				# remove useless files
+				rm "$MCdir/run.bat" 2>/dev/null
+				rm "$MCdir/run.bat" 2>/dev/null
+				rm "$MCdir/user_jvm_args.txt" 2>/dev/null
+				if [ "$osName" = "windows" ]; then
+					mapfile -td $'\n' launchArgs < "$MCdir/libraries/net/neoforged/neoforge/$fullModLoaderVers/win_args.txt"
+				else
+					mapfile -td $'\n' launchArgs < "$MCdir/libraries/net/neoforged/neoforge/$fullModLoaderVers/unix_args.txt"
+				fi
+
+				launchArgs=("${launchArgs[@]//"libraries"/'${library_directory}'}")
+				launchArgsJson=$(printf '%s\n' "${launchArgs[@]}" | jq -Rs 'split("\n")[:-1]')
+				runtime="$(jq -r '.javaVersion.majorVersion // 8' "$versDir/$inheritedVers/$inheritedVers.json")" # runtime is actually required to launch the game here..
+			fi
 		;;
 		"fabric")
-			while IFS= read -r entry; do
+			while IFS="" read -r entry; do
 				while IFS= read -r val; do
 					jvmArgs+=("$val")
 				done < <(evaluateArgEntry "$entry" "$osName" "" "$(detect_arch)")
-			done < <(jq -c '.arguments.jvm[]' "$versionJson")
+			done < <(jq -c '.arguments.jvm[]' "$versionJson" 2>/dev/null) # if .argument.jvm doesn't exist, then we will have an empty array which is fine
+			jvmArgs+=("-DbundlerRepoDir=$MCdir/libraries")
 
-			gameArgsJson=$(jq '.arguments.game' "$versionJson")
-			inheritedClasspath=$(jq -r '.classpath' "$SHdir/versions/$inheritedVers.json")
-			classpath="${inheritedClasspath}${classpath}"
-			log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers.json"
+			gameArgsJson=$(jq '.arguments.game' "$versionJson" 2>/dev/null)
+
+			if ! ${parameter[server]}; then
+				inheritedClasspath=$(jq -r '.classpath' "$SHdir/versions/$inheritedVers.json")
+				classpath="${inheritedClasspath}${classpath}"
+			else
+				classpath=${classpath//"libraries"/'${library_directory}'} # replace the absolute library path by one that will be modified at startup
+				classpath=":\${root_directory}/versions/$inheritedVers/$inheritedVers-server.jar${classpath}"
+			fi
+			
+			log "INFO" "version.sh:install" "Ready to save $fullModLoaderVers"
+			
 	esac
 
 	jvmArgsJson=$(printf '%s\n' "${jvmArgs[@]}" | jq -Rs 'split("\n")[:-1]')
@@ -885,74 +980,129 @@ function install() {
 	versionType=$(jq -r '.type' "$versionJson")
 
 	
-	# aled
+	# hepl
 	case $modloader in
 		"vanilla")
-			jq -n \
-			--arg targetVers "$targetVers" \
-			--arg versionType "$versionType" \
-			--arg classpath "$classpath" \
-			--argjson gameArgs "$gameArgsJson" \
-			--argjson jvmArgs "$jvmArgsJson" \
-			--arg runtime "$runtime" \
-			--arg id "$id" \
-			--arg mainClass "$mainClass" \
-			--arg log4jName "$name" \
-			'{
-				"name": $targetVers,
-				"modloader": "vanilla",
-				"versionType": $versionType,
-				"classpath": $classpath,
-				"gameArgs": $gameArgs,
-				"jvmArgs": $jvmArgs,
-				"runtime": $runtime,
-				"assetIndexPath": ("./assets/indexes/" + $id + ".json"),
-				"assetIndexId": $id,
-				"assetRoot": "./assets/",
-				"mainClass": $mainClass,
-				"nativesDir": ("natives"),
-				"log4jconf": ("SHlauncher/log4jconf/" + $log4jName),
-			}' > "$SHdir/versions/$targetVers.json"
+			if ! ${parameter[server]}; then
+				jq -n \
+				--arg targetVers "$targetVers" \
+				--arg versionType "$versionType" \
+				--arg classpath "$classpath" \
+				--argjson gameArgs "$gameArgsJson" \
+				--argjson jvmArgs "$jvmArgsJson" \
+				--arg runtime "$runtime" \
+				--arg id "$id" \
+				--arg mainClass "$mainClass" \
+				--arg log4jName "$name" \
+				'{
+					"name": $targetVers,
+					"modloader": "vanilla",
+					"versionType": $versionType,
+					"classpath": $classpath,
+					"gameArgs": $gameArgs,
+					"jvmArgs": $jvmArgs,
+					"runtime": $runtime,
+					"assetIndexPath": ("./assets/indexes/" + $id + ".json"),
+					"assetIndexId": $id,
+					"assetRoot": "./assets/",
+					"mainClass": $mainClass,
+					"nativesDir": ("natives"),
+					"log4jconf": ("SHlauncher/log4jconf/" + $log4jName),
+					"side": "client"
+				}' > "$SHdir/versions/$targetVers.json"
+			else
+				jq -n \
+				--arg targetVers "$targetVers-server" \
+				--arg versionType "$versionType" \
+				--argjson jvmArgs "$jvmArgsJson" \
+				--arg runtime "$runtime" \
+				'{
+					"name": $targetVers,
+					"modloader": "vanilla",
+					"versionType": $versionType,
+					"jvmArgs": $jvmArgs,
+					"runtime": $runtime,
+					"side": "server"
+				}' > "$SHdir/versions/$targetVers-server.json"
+			fi
 		;;
 		"neoforge")
-			jq -n \
-			--arg name "$fullModLoaderVers" \
-			--arg inheritFrom "$inheritedVers" \
-			--arg versionType "$versionType" \
-			--arg moddedCp "$classpath" \
-			--argjson moddedGameArgs "$gameArgsJson" \
-			--argjson moddedJvmArgs "$jvmArgsJson" \
-			--arg mainClass "$mainClass" \
-			'{
-				"name": $name,
-				"modloader": "neoforge",
-				"inheritsFrom": $inheritFrom,
-				"versionType": $versionType,
-				"moddedCp": $moddedCp,
-				"moddedGameArgs": $moddedGameArgs,
-				"moddedJvmArgs": $moddedJvmArgs,
-				"mainClass": $mainClass
-			}' > "$SHdir/versions/neoforge-$fullModLoaderVers.json"
+			if ! ${parameter[server]}; then
+				jq -n \
+				--arg name "$fullModLoaderVers" \
+				--arg inheritFrom "$inheritedVers" \
+				--arg versionType "$versionType" \
+				'{
+					"name": $name,
+					"modloader": "neoforge",
+					"inheritsFrom": $inheritFrom,
+					"versionType": $versionType,
+					"moddedCp": $moddedCp,
+					"moddedGameArgs": $moddedGameArgs,
+					"moddedJvmArgs": $moddedJvmArgs,
+					"mainClass": $mainClass,
+					"side": "client"
+				}' > "$SHdir/versions/neoforge-$fullModLoaderVers.json"
+			else
+				jq -n \
+				--arg name "$fullModLoaderVers-server" \
+				--arg inheritFrom "$inheritedVers" \
+				--arg versionType "$versionType" \
+				--arg runtime "$runtime" \
+				--argjson launchArgs "$launchArgsJson" \
+				'{
+					"name": $name,
+					"modloader": "neoforge",
+					"inheritsFrom": $inheritFrom,
+					"versionType": $versionType,
+					"launchArgs": $launchArgs,
+					"runtime": $runtime,
+					"side": "server"
+				}' > "$SHdir/versions/neoforge-$fullModLoaderVers-server.json"
+			fi
 		;;
 		"fabric")
-			jq -n \
-			--arg name "$fullModLoaderVers" \
-			--arg inheritsFrom "$inheritedVers" \
-			--arg versionType "$versionType" \
-			--arg moddedCp "$classpath" \
-			--argjson moddedGameArgs "$gameArgsJson" \
-			--argjson moddedJvmArgs "$jvmArgsJson" \
-			--arg mainClass "$mainClass" \
-			' {
-				"name": $name,
-				"modloader": "fabric",
-				"inheritsFrom": $inheritsFrom,
-				"versionType": $versionType,
-				"moddedCp": $moddedCp,
-				"moddedGameArgs": $moddedGameArgs,
-				"moddedJvmArgs": $moddedJvmArgs,
-				"mainClass": $mainClass
-			}' > "$SHdir/versions/fabric-$fullModLoaderVers.json"
+			if ! ${parameter[server]}; then
+				jq -n \
+				--arg name "$fullModLoaderVers" \
+				--arg inheritsFrom "$inheritedVers" \
+				--arg versionType "$versionType" \
+				--arg moddedCp "$classpath" \
+				--argjson moddedGameArgs "$gameArgsJson" \
+				--argjson moddedJvmArgs "$jvmArgsJson" \
+				--arg mainClass "$mainClass" \
+				'{
+					"name": $name,
+					"modloader": "fabric",
+					"inheritsFrom": $inheritsFrom,
+					"versionType": $versionType,
+					"moddedCp": $moddedCp,
+					"moddedGameArgs": $moddedGameArgs,
+					"moddedJvmArgs": $moddedJvmArgs,
+					"mainClass": $mainClass,
+					"side": "client"
+				}' > "$SHdir/versions/fabric-$fullModLoaderVers.json"
+			else
+				jq -n \
+				--arg name "$fullModLoaderVers" \
+				--arg inheritsFrom "$inheritedVers" \
+				--arg versionType "$versionType" \
+				--arg moddedCp "$classpath" \
+				--argjson moddedGameArgs "$gameArgsJson" \
+				--argjson moddedJvmArgs "$jvmArgsJson" \
+				--arg mainClass "$mainClass" \
+				'{
+					"name": $name,
+					"modloader": "fabric",
+					"inheritsFrom": $inheritsFrom,
+					"versionType": $versionType,
+					"moddedCp": $moddedCp,
+					"moddedGameArgs": $moddedGameArgs,
+					"moddedJvmArgs": $moddedJvmArgs,
+					"mainClass": $mainClass,
+					"side": "server"
+				}' > "$SHdir/versions/fabric-$fullModLoaderVers-server.json"
+			fi
 	esac
 }
 
@@ -982,19 +1132,18 @@ function list() {
 			if [ "$(ls)" == "" ]; then printf "${YELLOW}No versions are installed yet${RESET}\n"; fi
 			for vers in *.json; do
 				log "DEBUG" "version.sh:list" "Checking version \"$vers\""
-				read -r name versionType runtime assetIndex currentModloader <<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.assetIndexId?) \(.modloader)"' "$vers")"
+				read -r name versionType runtime currentModloader <<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.modloader)"' "$vers")"
 				if [ "$currentModloader" = "null" ]; then currentModloader="vanilla"; fi
 				if [ "$currentModloader" = "$modloader" ]; then
-					if [ "$modloader" != "vanilla" ]; then
-						inheritance=$(jq -r '.inheritsFrom' "$vers")
-						runtime=$(jq -r '.runtime' "$inheritance.json")
-						assetIndex=$(jq -r '.assetIndexId' "$inheritance.json")
-					fi
 					printf "${BLUE_BOLD}$name :${RESET}\n"
 					echo " - Modloader: $currentModloader"
-					echo " - Java runtime: $runtime"
 					echo " - Version type: $versionType"
-					echo " - Uses assetIndex $assetIndex"
+					if [ "$currentModloader" != "vanilla" ]; then
+						inheritance=$(jq -r '.inheritsFrom' "$vers")
+						runtime=$(jq -r '.runtime' "$inheritance.json")
+						echo " - Inheritance: $inheritance"
+					fi
+					echo " - Java runtime: $runtime"
 				fi
 			done
 			cd "$MCdir" || return 255
@@ -1285,8 +1434,9 @@ function helpPage() {
 	printf " - install [-m] <vanilla version> [<modloader version>] : Install the specified version (some version might not be supported)\n"
 	printf " - remove [-m] <vanilla version> [<modloader version>] : Remove the specified version. This instruction is quite inefficient.\n"
 	printf " - help : Print this help\n"
-	printf "\-m\" | \"--modloader\" : Specifies the concerned modloader. Can be vanilla, Forge, Neoforge, Fabric or Quilt\n"
-	printf "\"-v\" | \"--version\" : Select a version \"filter\" (used with the grep command)\n"
+	printf "\"-m\" | \"--modloader\" : Specifies the concerned modloader. Can be vanilla, Forge, Neoforge, Fabric or Quilt\n"
+	printf "\"-v\" | \"--version\" : Select a version \"filter\" (used as an argument with the grep command)\n"
+	printf "\"-S\" | \"--server\" : manage server instead of clients\n"
 }
 
 function Main() {
@@ -1324,9 +1474,11 @@ mkdir -p "$SHdir/versions"
 mkdir -p "$SHdir/log4jconf"
 
 parameter[debugSkipAssets]=false
+parameter[server]=false
 parameter[modloader]=vanilla
 
 declareArgs debugSkipAssets NoShort flag
+declareArgs server S flag
 declareArgs modloader m value
 declareArgs version v value
 

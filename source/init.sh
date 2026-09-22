@@ -94,9 +94,10 @@ verbose=false
 trace=false
 portable=false
 cip=true
+onlineMode=true
 
 SHlname="SHlauncherBE"
-SHlvers="0.4.3" # edit version here
+SHlvers="0.5.0" # edit version here
 
 IFSBak=$' \t\n'
 
@@ -136,6 +137,11 @@ while true; do
 			export SHlvers="$2" # custom launcher version, also used when launching game
 			shift 2
 		;;
+		"--no-internet")
+			onlineMode=false
+			log "WARN" "init.sh:argHandler" "Assuming no internet"
+			shift
+		;;
 		"--clear-manifest")
 			command -p rm -r "$SHdir/manifests/" 2>/dev/null # removes every manifest
 			log "INFO" "init.sh:argHandler" "Manifest cleared with errcode $?"
@@ -165,23 +171,28 @@ case "$OSTYPE" in
 	*)                     osName="unknown"; cmdSeparator=':' ;;
 esac
 
-onlineMode=true
-if [ "$osName" = "windows" ]; then
-	/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null # idk why msys2 doesn't have ping, so I need to use the windows one
-	pingExitCode=$?
-elif [ "$osName" != "unknown" ]; then
-	ping -c 1 -W 3 google.com &>/dev/null
-	pingExitCode=$?
-else
-  log "WARN" "init.sh" "Unknown operating system, ping feature may not work" # a lot of things may not work
-  ping -c 1 -W 3 google.com &>/dev/null
-  pingExitCode=$?
-fi
+# shellcheck disable=SC2015
+"$onlineMode" && {
+	if [ "$osName" = "windows" ]; then
+		/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null # idk why msys2 doesn't have ping, so I need to use the windows one
+		pingExitCode=$?
+	elif [ "$osName" != "unknown" ]; then
+		ping -c 1 -W 3 google.com &>/dev/null
+		pingExitCode=$?
+	else
+  		log "WARN" "init.sh" "Unknown operating system, ping feature may not work" # a lot of things may not work
+  		ping -c 1 -W 3 google.com &>/dev/null
+ 		pingExitCode=$?
+	fi
+} || {
+	log "INFO" "init.sh" "skipping internet check as specified"
+	pingExitCode=0
+}
 
 if [ "$pingExitCode" != 0 ] && [ "$pingExitCode"  != 127 ]; then
 	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
-	printf "${RED}This launcher requires an Internet connection for almost everything, an offline mode exist but is very limited.\n"
-	printf "Restart or reset the launcher to switch back to Online mode${RESET}\n"
+	printf "[ERROR] This launcher requires an Internet connection for almost everything, an offline mode exist but is very limited.\n"
+	printf "[ERROR] Restart or reset the launcher to switch back to Online mode\n"
 	onlineMode=false
 elif [ "$pingExitCode" = 127 ]; then
 	log "WARN" "init.sh" "Can't ping, \"ping\" command not found" # keep online mode anyway
@@ -195,20 +206,21 @@ log "INFO" "init.sh" "Starting $SHlname, version $SHlvers, debug mode: $debug, v
 
 if $trace; then
 	printf "As you wish...\n"
+	PS4='${BLUE_BOLD}+ [TRACE]${RESET} '
 	set -x
 fi
-# starting to check dependencies (jq and unzip)
+# starting to check dependencies (jq, unzip and curl)
 export MissingDependencies=()
 
 mkdir -p "$SHdir/jq"
 if $portable; then
-	if exceptionCatch "init.sh" "$SHdir/jq" --version; then
+	if exceptionCatch "init.sh" "$SHdir/jq/jq" --version; then
 		# shellcheck disable=SC2123
 		PATH="$PATH${cmdSeparator}$SHdir/jq" 
 		log "INFO" "init.sh" "Engaged portable mode"
 	else
 		# continues normally if jq is not provided
-		printf "${RED_BOLD}No JQ binary detected at %s. Please download the portable version of JQ and put it there${RESET}\n" "$SHdir/jq/jq"
+		printf "${RED_BOLD}No JQ binary detected at %s. Please download the portable version from \"https://jqlang.org/download/\" (or any other sources) and install it there${RESET}\n" "$SHdir/jq"
 		log "ERROR" "init.sh" "No JQ binary provided, ignoring portable mode"
 	fi
 fi
@@ -220,6 +232,10 @@ fi
 if ! unzip --help &>/dev/null; then
 	log "FATAL" "init.sh" "Unzip was not found in the PATH, crash imminent"
 	MissingDependencies+=("unzip")
+fi
+if ! curl --version &>/dev/null; then
+	log "FATAL" "init.sh" "curl was not found in the PATH, crash imminent"
+	MissingDependencies+=("curl")
 fi
 # shellcheck source=.minecraft/SHlauncher/dependencyInst.sh
 source "$SHdir/dependencyInst.sh"
@@ -314,10 +330,10 @@ function writeSettingsValue() {
 source "$SHdir/commands/settings.sh" init # loads settings, create missing keys, etc...
 
 force_color=false
-# check https://no-color.org/ or https://force-color.org/
+# check https://no-color.org/ and https://force-color.org/
 if [ -n "$FORCE_COLOR" ]; then
 	color=true
-	force_color=true # force the use of the 24bit color system regardless of settings
+	force_color=true # force the use of the 24bit color system regardless of settings ; has priority over NO_COLOR
 	log INFO "init.sh" "FORCE_COLOR recognized"
 elif [ -n "$NO_COLOR" ]; then
 	color=false # does not load any colors regardless of settings
@@ -332,7 +348,7 @@ mkdir -p "$SHdir"
 # shellcheck source=.minecraft/SHlauncher/crashHandler.sh
 cd "$SHdir" || source "$SHdir/crashHandler.sh" "CD_FAIL"
 
-$cip || printf "${RED_BOLD} Command injection protection is disabled, DO NOT execute commands that could lead to arbitrary code execution\n"
+$cip || printf "${RED_BOLD}Command injection protection is disabled, DO NOT execute commands that could lead to arbitrary code execution\n"
 
 printf "${GREEN_BOLD}SHlauncher started${RESET}\n"
 
@@ -400,7 +416,7 @@ if $onlineMode; then
 		cat manifests/temp_manifest.json > manifests/vanilla_version_manifest.json
 	else
 		log "WARN" "init.sh" "Vanilla manifest download failed, invalid JSON file"
-		printf "${RED}The newly downloaded vanilla manifest seem invalid, the old one will be used instead${RESET}\n"
+		printf "${YELLOW_BOLD}[WARN]${RESET}${YELLOW} The newly downloaded vanilla manifest seem invalid, the old one will be used instead${RESET}\n"
 	fi
 
 	if curl -so manifests/temp_manifest.xml https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml; then
@@ -411,7 +427,7 @@ if $onlineMode; then
 			> manifests/neoforge_version_manifest.json
 	else
 		log "WARN" "init.sh" "Neoforge manifest download failed, invalid JSON file"
-		printf "${RED}The newly downloaded Neoforge manifest seem invalid, the old one will be used instead${RESET}\n"
+		printf "${YELLOW_BOLD}[WARN]${RESET}${YELLOW} The newly downloaded Neoforge manifest seem invalid, the old one will be used instead${RESET}\n"
 		
 	fi
 
@@ -419,7 +435,7 @@ if $onlineMode; then
 		cat manifests/temp_manifest.json > manifests/fabric/fabric_game_manifest.json
 	else
 		log "WARN" "init.sh" "fabric game manifest download failed, invalid JSON file"
-		printf "${RED}[ERROR]${RESET}${RED} The newly downloaded Fabric game manifest seem invalid, the old one will be used instead${RESET}\n"
+		printf "${YELLOW_BOLD}[WARN]${RESET}${YELLOW} The newly downloaded Fabric game manifest seem invalid, the old one will be used instead${RESET}\n"
 	fi
 else
 	printf "${YELLOW_BOLD}[WARN]${YELLOW} Unable to reload some manifest file, old one will be used instead${RESET}\n"

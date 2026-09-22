@@ -1,34 +1,63 @@
 # shellcheck disable=SC2154
 
 function list() {
-	if [ "$(ls "$SHdir/instances")" == "" ]; then # give me a better solution..
-		printf "${YELLOW}No Instances were set up (yet!)${RESET}\n"
-	else
-		for Finst in "$SHdir"/instances/*.json; do
-			log "DEBUG" "settings.sh:list" "Checking instance \"${Finst}\""
-			# jq mess to get every displayed info
-			IFS='|' read -r name version modloader gameDir java MinRam MaxRam modloaderVersion <<< \
-				"$(jq -r '"\(.name)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$Finst")"
-			mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$Finst")
-			mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$Finst")
+	shopt -s nullglob
 
-			printf "${BLUE}%s :${RESET}\n" "$name"
-			echo " - Version (version): $version" 
-			echo " - Modloader (modloader - modloaderVersion): $modloader $modloaderVersion"
-			echo " - Game directory (gameDir): $gameDir"
-			echo " - Java (java): $java"
-			echo " - Minimal amount of RAM (MinRam): $MinRam"
-			echo " - Maximal amount of RAM (MaxRam): $MaxRam"
-			echo " - Additional JVM arguments (additionalJvmArgs): %s" "${additionalJvmArgs[@]}"
-			echo " - Additional game arguments (customGameArgs): %s" "${customGameArgs[@]}"
-		done
+	printf -- "|=======================================================================|\n"
+	printf -- "| %-16s | %-12s | %-14s | %-18s |\n" "NAME" "MODLOADER" "VERSION" "MODLOADER VERSION"
+	printf -- "|-----------------------------------------------------------------------|\n"
+
+	for Finst in "$SHdir"/instances/*.json; do
+		# jq mess to get every displayed info
+		IFS='|' read -r side name version modloader modloaderVersion < \
+			<(jq -r '"\(.side)|\(.name)|\(.version)|\(.modloader)|\(.modloaderVersion)"' "$Finst")
+
+		[ "$side" = null ] && side="client"
+
+		if [ "$side" = "client" ]; then
+			printf -- "|${GREEN} %-16s ${RESET}| %-12s | %-14s | %-18s |\n" "$name" "$modloader" "$version" "${modloaderVersion:="None"}"
+		else
+			printf -- "|${CYAN} %-16s ${RESET}| %-12s | %-14s | %-18s |\n" "$name" "$modloader" "$version" "${modloaderVersion:="None"}"
+		fi
+	done
+
+	printf -- "|=======================================================================|\n"
+	shopt -u nullglob
+}
+
+function fetch() {
+	local name=${parameter[useInstance]}
+	[ -z "$name" ] && name=${Sett[SelectedInstance]} # replace it by the selected instance if it's empty
+
+	if [ "$name" == "None" ]; then
+		printf "${RED_BOLD}No instances were specified, type \"instance help\"${RESET}\n"
+		return 2
 	fi
+
+	# jq mess to get every displayed info
+	IFS='|' read -r side version modloader gameDir java MinRam MaxRam modloaderVersion < \
+		<(jq -r '"\(.side)|\(.version)|\(.modloader)|\(.gameDir)|\(.java)|\(.MinRam)|\(.MaxRam)|\(.modloaderVersion)"' "$SHdir/instances/$name.json")
+	mapfile -t additionalJvmArgs < <(jq -r '.additionalJvmArgs[]' "$SHdir/instances/$name.json")
+	mapfile -t customGameArgs < <(jq -r '.customGameArgs[]' "$SHdir/instances/$name.json")
+
+	printf "${BLUE_BOLD}%s :${RESET}\n" "$name"
+	echo " - Version (version): $version"
+	echo " - Side (side): $side"
+	echo " - Modloader (modloader - modloaderVersion): $modloader $modloaderVersion"
+	echo " - Game directory (gameDir): $gameDir"
+	echo " - Java (java): $java"
+	echo " - Minimal amount of RAM (MinRam): $MinRam"
+	echo " - Maximal amount of RAM (MaxRam): $MaxRam"
+	echo " - Additional JVM arguments (additionalJvmArgs): \"${additionalJvmArgs[*]}\""
+	echo " - Additional game arguments (customGameArgs): \"${customGameArgs[*]}\""
 }
 
 function SetColor() {
 	# basically the same thing as around the line 20 of core.sh
-	if [ "${Sett[SelectedInstance]}" == "None" ]; then \
+	if [ "${Sett[SelectedInstance]}" == "None" ]; then
 		DispInst="${RL_START}${RED}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
+	elif [ "$(jq -r '.side' "$SHdir/instances/${Sett[SelectedInstance]}.json")" = "server" ]; then
+		DispInst="${RL_START}${CYAN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	else
 		DispInst="${RL_START}${GREEN}${RL_END}${Sett[SelectedInstance]}${RL_START}${RESET}${RL_END}"
 	fi
@@ -40,7 +69,7 @@ function create() {
 	version=$3
 	modloaderVersion=$4
 
-	case "" in # check if vars are empty
+	case "" in # check if any var is empty
 		"$name" | "$modloader" | "$version")
 		printf "${RED_BOLD}One or more argument were forgotten, this command require at least a name, a modloader (can be vanilla), and a minecraft version${RESET}\n"
 		return 2
@@ -99,11 +128,13 @@ function create() {
 
 	log "INFO" "instance.sh:create" "Requested creation of instance \"$name\" with modloader \"$modloader\" and version $version $modloaderVersion"
 	echo "creating instance $name with modloader $modloader and version $version $modloaderVersion"
+
 	if [ "$modloader" == "vanilla" ]; then
 		versionProfile="$version"
 	else
 		versionProfile="$modloader-$fullModLoaderVers"
 	fi
+	
 	log "DEBUG" "instance.sh:create" "Resolved versionProfile to \"$versionProfile\""
 
 	if ${parameter[anotherGameDir]}; then
@@ -115,33 +146,71 @@ function create() {
 	else
 		gameDir="$MCdir" # if none are specified, just use .minecraft
 	fi
+	if ${parameter[server]}; then
+		[ -f "$MCdir/eula.txt" ] || printf "# By changing this setting to true, you are agreeing to Mojang's End User License Agreement (https://aka.ms/MinecraftEULA)\neula=false" > "$MCdir/eula.txt"
+		if [ "$gameDir" != "$MCdir" ]; then # obviously don't try to create a shortcut if it leads to itself
+			if ! exceptionCatch "instance.sh:create" ln "$MCdir/eula.txt" "$gameDir/eula.txt" --symbolic; then
+				printf "${YELLOW}Failed to create the symlink between the main eula.txt and the secondary file in the instance folder${RESET}\n"
+				printf "${YELLOW}This may not be an issue (if the directory was not empty before creation). But it can lead to some problems when launching the server. Check the log file for more info${RESET}\n"
+			fi
+		fi
+	fi
 	
-	jq -n \
-		--arg name "$name" \
-		--arg modloader "$modloader" \
-		--arg version "$version" \
-		--arg modloaderVersion "$modloaderVersion" \
-		--arg gameDir "$gameDir" \
-		--arg assetsDir "$MCdir/assets" \
-		--arg java "default" \
-		--arg MinRam "${Sett[DefaultMinimumRam]}" \
-		--arg MaxRam "${Sett[DefaultMaximumRam]}" \
-		--arg versionProfile "$versionProfile" \
-		'{
-			"name": $name,
-			"modloader": $modloader,
-			"version": $version,
-			"modloaderVersion": $modloaderVersion,
-			"versionProfile": $versionProfile,
-			"gameDir": $gameDir,
-			"assetsDir": $assetsDir,
-			"java": $java,
-			"MinRam": $MinRam,
-			"MaxRam": $MaxRam,
-			"additionalJvmArgs": [],
-			"customGameArgs": []
-		}' \
-		> "$SHdir/instances/$name.json"
+	if ! ${parameter[server]}; then
+		jq -n \
+			--arg name "$name" \
+			--arg modloader "$modloader" \
+			--arg version "$version" \
+			--arg modloaderVersion "$modloaderVersion" \
+			--arg gameDir "$gameDir" \
+			--arg assetsDir "$MCdir/assets" \
+			--arg java "default" \
+			--arg MinRam "${Sett[DefaultMinimumRam]}" \
+			--arg MaxRam "${Sett[DefaultMaximumRam]}" \
+			--arg versionProfile "$versionProfile" \
+			'{
+				"name": $name,
+				"modloader": $modloader,
+				"version": $version,
+				"modloaderVersion": $modloaderVersion,
+				"versionProfile": $versionProfile,
+				"gameDir": $gameDir,
+				"assetsDir": $assetsDir,
+				"java": $java,
+				"MinRam": $MinRam,
+				"MaxRam": $MaxRam,
+				"side": "client",
+				"additionalJvmArgs": [],
+				"customGameArgs": []
+			}' \
+			> "$SHdir/instances/$name.json"
+	else
+		jq -n \
+			--arg name "$name" \
+			--arg modloader "$modloader" \
+			--arg version "$version" \
+			--arg modloaderVersion "$modloaderVersion" \
+			--arg gameDir "$gameDir" \
+			--arg java "default" \
+			--arg MinRam "${Sett[DefaultMinimumRam]}" \
+			--arg MaxRam "${Sett[DefaultMaximumRam]}" \
+			--arg versionProfile "$versionProfile" \
+			'{
+				"name": $name,
+				"modloader": $modloader,
+				"version": $version,
+				"modloaderVersion": $modloaderVersion,
+				"versionProfile": $versionProfile,
+				"gameDir": $gameDir,
+				"java": $java,
+				"MinRam": $MinRam,
+				"MaxRam": $MaxRam,
+				"side": "server",
+				"additionalJvmArgs": [],
+				"customGameArgs": []
+			}' \
+			> "$SHdir/instances/$name.json"
+	fi
 }
 
 function sel() {
@@ -179,26 +248,28 @@ function reset() {
 }
 
 function helpPage() {
-	printf "${CYAN}Usage${RESET} : instance [-cua] <instruction> [<args...>]\n"
+	printf "${CYAN}Usage${RESET} : instance [-cuaS] <instruction> [<args...>]\n"
 	printf "Manages the instances of the launcher\n"
 	printf "${CYAN}Argument list${RESET} :\n"
 	printf " - create [-ca] <instance name> <modloader name> <vanilla version> [modloader version] : Creates an instance\n"
-	printf " - modify <-u> <parameter> <new value> : modifies an instance, uses the selected instance if none are specified\n"
+	printf " - modify [-u] <parameter> <new value> : modifies an instance, uses the selected instance if none are specified\n"
 	printf " - remove [-u] OR <instance name> : Deletes an instance\n"
 	printf " - list : Lists every created instances alongside their parameter (display name and key). the key is used to modify the value with \"instance modify\"\n"
+	printf " - fetch [-u] : List detailed information about one instance ; uses the selected instance if none are specified\n"
 	printf " - select [-u] OR <instance name> : Select an instance to use\n"
 	printf " - reset : Deselect the current instance (switching it to None)\n"
 	printf " - help : Prints this help\n"
 	printf " - \"-c\" | \"--customGameDir\" : (incompatible with -a) Sets the games directory to the specified one\n"
 	printf " - \"-a\" | \"--anotherGameDir\" : (incompatible with -c) Sets the games directory to a generated one\n"
-	printf " - \"-u\" | \"--useInstance\" : specifies the instance that will be tampered"
+	printf " - \"-u\" | \"--useInstance\" : specifies the instance that will be used. Override the selected instance\n"
+	printf " - \"-S\" | \"--server\" : manages servers instead of clients\n"
 }
 
 function modify() {
 	local targetInstance=${Sett[SelectedInstance]}
 	local setting=$1
 	local newValue=$2
-	[ "$targetInstance" = "None" ] && targetInstance=${parameter[useInstance]} # if it's empty, it will trow an error later, confusing but it works
+	[ "$targetInstance" = "None" ] && targetInstance=${parameter[useInstance]} # if it's empty, it will trow an error in the next block of code, confusing but it works
 
 	# check if what the user entered is actually valid
 	if [ -z "$setting" ]; then
@@ -304,6 +375,11 @@ function argHandler() {
 			modify "$@"
 			ExitCode=$?
 		;;
+		"fetch")
+			shift
+			fetch "$@"
+			ExitCode=$?
+		;;
 		"help")
 			helpPage
 		;;
@@ -324,10 +400,12 @@ mkdir -p "$MCdir/instances"
 parameter[customGameDir]=""
 parameter[anotherGameDir]=false
 parameter[useInstance]=""
+parameter[server]=false
 
 declareArgs customGameDir c value
 declareArgs anotherGameDir a flag
 declareArgs useInstance u value
+declareArgs server S flag
 
 if ! globalArgHandler "$@"; then
 	return $?

@@ -1,0 +1,46 @@
+name: releases-handler
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+
+    steps:
+    - name: Show version
+      run: |
+        echo "Building ${{ github.ref_name }}"
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Create archives
+      run: |
+        mkdir -p dist
+
+        cp README.MD source/
+        cp CHANGELOG source/
+        cd source/
+
+        tar -czf \
+          "dist/SHlauncher-${{ github.ref_name }}.tar.gz" \
+          .
+
+        zip -r \
+          "dist/SHlauncher-${{ github.ref_name }}.zip" \
+          .
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          dist/SHlauncher-${{ github.ref_name }}.tar.gz
+          dist/SHlauncher-${{ github.ref_name }}.zip

@@ -15,3 +15,25 @@ This is the global changelog, which lists every version (starting from 0.4.1)
  - Added the "config" command (in the form of "instance modify")
  - Added default Minimum/Maximum ram assigned when creating instances (via setting keys)
  - Fixed minor bugs and typos
+
+======== 0.5.0-pre1 ========
+ - Added vanilla server support
+ - Fixed bugs
+ - Still going (I'm gonna work on the github page)
+======== 0.5.0-pre2 ========
+ - Added a github workflow to use the releases (and the tags) (better late than never)
+ - Added neoforge server support (with roughly no bugs)
+ - Moved ROR into it's own file (cleaner)
+ - Fixed minor bugs
+   - Made the library directory path absolute when launching the game
+   - "-DbundlerRepoDir" nows no longer points to .minecraft/.minecraft
+ - Removed the "assetIndex" category from "version list" results
+======== 0.5.0-pre3 ========
+ - Added fabric server support
+ - Modified the README to fit the future objectives
+ - Added a proper PS4 for trace mode
+ - Moved the old "instance list" into a new "instance fetch" (list only displays a few useful information)
+ - Completely renovated launch.sh (it is now way cleaner)
+ - Fixed bugs : 
+   - "HISTFILE : Parameter null or not set" should not appear anymore
+ - Other changes : The shell nows exit when receiving the EOF character (ctrl+D)
