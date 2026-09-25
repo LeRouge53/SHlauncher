@@ -46,6 +46,12 @@ case $1 in
 		terminate
 		exit 5
 	;;
+	"LIB_LOAD_FAIL")
+		echo " The launcher failed to start because there was an error when loading the libraries. Check the log file for more info"
+		echo " - This is most likely caused by missing files in the \".minecraft/SHlauncher/libs\" folder, check the content and try again"
+		terminate
+		exit 6
+	;;
 	*)
 		# everything else
 		echo " The launcher crashed for an unspecified reason : $1."

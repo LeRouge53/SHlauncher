@@ -1,4 +1,3 @@
-# shellcheck disable=SC2154
 log "DEBUG" "core.sh" "Core.sh successfully called. Starting..."
 
 cd "$SHdir/commands" || "$SHdir/crashHandler.sh" CD_FAIL
@@ -189,7 +188,7 @@ while true; do
 	
 	if ! read -erp "${dispExitCode}SHlauncher ${DispProf}:${DispInst}> " commandLine; then # command prompt, it is in an if statement to detect any EOF (ctrl+D) character
 		launchCommand exit
-	fi # that single if statement also allows to use "scripts" (group of commands) by doing "SHlauncher < afile.txt"
+	fi # that single if statement also allows to use "scripts" (group of commands actually) by doing "SHlauncher < afile.txt"
 
 	# shellcheck disable=SC2086
 	[ -n "$commandLine" ] && launchCommand $commandLine

@@ -939,7 +939,7 @@ function install() {
 			else
 				# remove useless files
 				rm "$MCdir/run.bat" 2>/dev/null
-				rm "$MCdir/run.bat" 2>/dev/null
+				rm "$MCdir/run.sh" 2>/dev/null
 				rm "$MCdir/user_jvm_args.txt" 2>/dev/null
 				if [ "$osName" = "windows" ]; then
 					mapfile -td $'\n' launchArgs < "$MCdir/libraries/net/neoforged/neoforge/$fullModLoaderVers/win_args.txt"
@@ -1132,10 +1132,13 @@ function list() {
 			if [ "$(ls)" == "" ]; then printf "${YELLOW}No versions are installed yet${RESET}\n"; fi
 			for vers in *.json; do
 				log "DEBUG" "version.sh:list" "Checking version \"$vers\""
-				read -r name versionType runtime currentModloader <<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.modloader)"' "$vers")"
+				read -r name versionType runtime currentModloader side<<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.modloader) \(.side)"' "$vers")"
+
+				[ "$side" = "server" ] && name=${name//-server/}
 				if [ "$currentModloader" = "null" ]; then currentModloader="vanilla"; fi
 				if [ "$currentModloader" = "$modloader" ]; then
 					printf "${BLUE_BOLD}$name :${RESET}\n"
+					echo " - side: $side"
 					echo " - Modloader: $currentModloader"
 					echo " - Version type: $versionType"
 					if [ "$currentModloader" != "vanilla" ]; then

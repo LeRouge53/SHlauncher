@@ -370,6 +370,7 @@ source/.minecraft/SHlauncher/*
 !source/.minecraft/SHlauncher/*.sh
 !source/.minecraft/SHlauncher/*.txt
 !source/.minecraft/SHlauncher/commands/
+!source/.minecraft/SHlauncher/libs/
 !source/.minecraft/SHlauncher/help/
 !source/.minecraft/SHlauncher/settings/
 

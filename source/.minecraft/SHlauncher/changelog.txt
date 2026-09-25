@@ -19,3 +19,6 @@
  - Fixed bugs : 
    - "HISTFILE : Parameter null or not set" should not appear anymore
  - Other changes : The shell nows exit when receiving the EOF character (ctrl+D)
+======== 0.5.1 ========
+ - Added internal changes (the launcher is now more centralized under a "libs/" folder)
+ - Fixed minor bugs

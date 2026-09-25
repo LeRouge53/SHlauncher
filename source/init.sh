@@ -11,70 +11,6 @@ elif [ -n "$ZSH_VERSION" ]; then
 	source "$dir/.minecraft/SHlauncher/crashHandler.sh" ZSH
 fi
 
-function log() {
-	local level=$1
-	local source=$2
-	shift 2
-	local msg="$*"
-	case "" in # check if any arguments is empty, throws an error if yes
-		"$level" | "$source")
-			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function log require 2 arguments but some are missing! Check the log file for more info${RESET}\n"
-			log "ERROR" "init.sh:log" "BUG : Some argument are missing. Expected argument: level \"$level\", source \"$source\""
-			return 2
-		;;
-		*)
-			true
-	esac
-
-	touch "$SHlogFile"
-	# write DEBUG lines only if debug mode is enabled
-	if [ "$level" != "DEBUG" ]; then
-		printf '[%(%F %T)T] [%s/%s] %s\n' -1 "$level" "$source" "$msg" >> "$SHlogFile"
-	elif $debug; then
-		printf '[%(%F %T)T] [%s/%s] %s\n' -1 "$level" "$source" "$msg" >> "$SHlogFile"
-	fi
-
-	if $verbose || $trace; then
-		case $level in
-		"INFO")
-			printf "${GREEN_BOLD}[%s/%s]"$'\033[0m'"${GREEN} %s\n${RESET}" "$level" "$source" "$msg" >&2
-		;;
-		"WARN")
-			printf "${YELLOW_BOLD}[%s/%s]${RESET}${YELLOW} %s\n${RESET}" "$level" "$source" "$msg" >&2
-		;;
-		"ERROR")
-			printf "${RED_BOLD}[%s/%s]${RESET}${RED} %s\n${RESET}" "$level" "$source" "$msg" >&2
-		;;
-		"FATAL")
-			printf "${RED_BOLD}[%s/%s] %s\n${RESET}" "$level" "$source" "$msg" >&2
-		;;
-		"DEBUG")
-			$debug && printf "${CYAN_BOLD}[%s/%s]${RESET}${CYAN} %s\n${RESET}" "$level" "$source" "$msg" >&2
-		;;
-		*)
-			printf "${WHITE_BOLD}[%s/%s]${RESET}${WHITE} %s\n${RESET}" "$level" "$source" "$msg" >&2
-		esac
-	fi
-}
-exec 3>&1 # create file descriptor 3 (used to capture stderr only in exceptionCatch)
-function exceptionCatch(){
-	local source=$1 # source script (used for logging). Other arguments are the content the command to execute
-	shift
-	if [[ -z $source || $# -eq 0 ]]; then
-		printf '%b\n' "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function exceptionCatch requires 2 arguments, but some are missing! Check the log file for more info\n" >&2
-		log "ERROR" "init.sh:exceptionCatch" "BUG : Some argument are missing. Expected argument: source \"$source\", "'$*'" \"$*\""
-		return 2
-	fi
-	local output
-	output=$("$@" 2>&1 >&3 3>&-) # using file descriptor 3 to get stderr only
-	local exitCode=$?
-	if (( exitCode != 0 )); then
-		log "ERROR" "init.sh:exceptionCatch" "Command \"$*\" requested by $source failed to execute!"
-		[[ -n $output ]] && log "ERROR" "init.sh:exceptionCatch" "$output" # if there is an output, print it
-	fi
-	return "$exitCode" # return the command's exit code so the function can be used in if statements
-}
-
 bashSource="${BASH_SOURCE[0]}"
 while [ -h "$bashSource" ]; do
 	dirname="$( cd -P "$( dirname "$bashSource" )" >/dev/null 2>&1 && pwd )"
@@ -83,11 +19,48 @@ while [ -h "$bashSource" ]; do
 done
 dir="$( cd -P "$( dirname "$bashSource" )" >/dev/null 2>&1 && pwd )"
 
-MCdir="$dir/.minecraft"
-SHdir="$MCdir/SHlauncher"
-SHlogFile="$SHdir/SHlog.log"
+export dir
+export MCdir="$dir/.minecraft"
+export SHdir="$MCdir/SHlauncher"
+export SHlogFile="$SHdir/SHlog.log"
+
+function libFail() {
+	#shellcheck source=.minecraft/SHlauncher/crashHandler.sh
+	source "$SHdir/crashHandler.sh" "LIB_LOAD_FAIL"
+}
+
 # shellcheck source=.minecraft/SHlauncher/crashHandler.sh
 trap 'echo ""; source "$SHdir/crashHandler.sh" SIGINT' INT # ctrl+c catch
+
+# load libs (kinda useful)
+set -e # I don't want anything bad to happen here
+
+#shellcheck source=.minecraft/SHlauncher/libs/logging.sh
+source "$SHdir/libs/logging.sh" || libFail 
+
+declare -gA Sett
+#shellcheck source=.minecraft/SHlauncher/libs/settingSys.sh
+if ! source "$SHdir/libs/settingSys.sh"; then
+	log "FATAL" "init.sh" "Failed to load settingSys.sh, crash imminent"
+	libFail
+fi
+
+#shellcheck source=.minecraft/SHlauncher/libs/mavenParser.sh
+if ! source "$SHdir/libs/mavenParser.sh"; then
+	log "FATAL" "init.sh" "Failed to load mavenParser.sh, crash imminent"
+	libFail
+fi
+
+declare -A parameter
+declare -A declaredLongParam
+declare -A declaredShortParam
+#shellcheck source=.minecraft/SHlauncher/libs/argSys.sh
+if ! source "$SHdir/libs/argSys.sh"; then
+	log "FATAL" "init.sh" "Failed to load argSys.sh, crash imminent"
+	libFail
+fi
+
+set +e
 
 debug=false # some default values before treating the arguments
 verbose=false
@@ -147,7 +120,7 @@ while true; do
 			log "INFO" "init.sh:argHandler" "Manifest cleared with errcode $?"
 			shift
 		;;
-		--* | -*)
+		-*)
 			printf "Unknown parameter %s\n" "$1"
 			exit 2
 		;;
@@ -155,11 +128,16 @@ while true; do
 			break
 		;;
 		*)
-			log "INFO" "init.sh:argHandler" "Found command $* that will be executed later" # the rest is passed to core.sh
+			log "INFO" "init.sh:argHandler" "Found command \"$*\" that will be executed later" # the rest is passed to core.sh
 			break
 	esac
 done
 
+if $trace; then
+	printf "As you wish...\n"
+	PS4='${BLUE_BOLD}+ [TRACE]${RESET} '
+	set -x
+fi
 
 command -p rm "$SHlogFile" &>/dev/null
 log "DEBUG" "init.sh" "Core directory resolved to $dir"
@@ -168,13 +146,13 @@ case "$OSTYPE" in
 	msys*|cygwin*|win32*)  osName="windows"; cmdSeparator=';' ;;
 	darwin*)               osName="osx"; cmdSeparator=':' ;;
 	linux*)                osName="linux"; cmdSeparator=':' ;;
-	*)                     osName="unknown"; cmdSeparator=':' ;;
+	*)                     osName="unknown"; cmdSeparator=':' ;; # had to put something under cmdSeparator, so it's ":"
 esac
 
 # shellcheck disable=SC2015
-"$onlineMode" && {
+if $onlineMode; then
 	if [ "$osName" = "windows" ]; then
-		/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null # idk why msys2 doesn't have ping, so I need to use the windows one
+		/c/Windows/System32/ping.exe -n 1 -w 3000 google.com &>/dev/null # msys2 doesn't have ping, so I need to use the windows one
 		pingExitCode=$?
 	elif [ "$osName" != "unknown" ]; then
 		ping -c 1 -W 3 google.com &>/dev/null
@@ -184,10 +162,10 @@ esac
   		ping -c 1 -W 3 google.com &>/dev/null
  		pingExitCode=$?
 	fi
-} || {
+else
 	log "INFO" "init.sh" "skipping internet check as specified"
 	pingExitCode=0
-}
+fi
 
 if [ "$pingExitCode" != 0 ] && [ "$pingExitCode"  != 127 ]; then
 	log "ERROR" "init.sh" "No internet detected, many features might not work properly"
@@ -204,11 +182,6 @@ log "INFO" "init.sh" "Resolved operating system to $osName"
 
 log "INFO" "init.sh" "Starting $SHlname, version $SHlvers, debug mode: $debug, verbose mode: $verbose, cip: $cip, portable mode: $portable"
 
-if $trace; then
-	printf "As you wish...\n"
-	PS4='${BLUE_BOLD}+ [TRACE]${RESET} '
-	set -x
-fi
 # starting to check dependencies (jq, unzip and curl)
 export MissingDependencies=()
 
@@ -237,97 +210,12 @@ if ! curl --version &>/dev/null; then
 	log "FATAL" "init.sh" "curl was not found in the PATH, crash imminent"
 	MissingDependencies+=("curl")
 fi
+
 # shellcheck source=.minecraft/SHlauncher/dependencyInst.sh
 source "$SHdir/dependencyInst.sh"
 
-declare -A parameter
-declare -A declaredLongParam
-declare -A declaredShortParam
-function declareArgs() {
-	local long="$1" # foo (long parameter name)
-	local short="$2" # f (short parameter name linked to the long one). Is optional
-	local type="$3" # "value" or "flag" ; value : the user needs to enter a value with the parameter. flag : if the parameter is specified, switch the value to true 
-	case "" in
-		"$long" | "$short" | "$type")
-			printf "${YELLOW_BOLD}[BUG]${YELLOW} Function declareArgs requires 3 arguments but some are missing! Check the log file for more info\n" >&2
-			log "ERROR" "init.sh:declareArgs" "BUG : Some argument are missing. Expected argument: long \"$long\", short \"$short\" (optional), type \"$type\""
-			return 2
-		;;
-		*)
-			true
-	esac
-
-	declaredLongParam["$long"]="$type"
-
-	if [ "$short" != "NoShort" ] || [ -z "$short" ]; then
-		declaredShortParam["$short"]="$long"
-	fi
-	log "DEBUG" "init.sh:declareArgs" "Declared parameter \"$long\" with short \"$short\" and type \"$type\""
-}
-function globalArgHandler() {
-	local -a args=("$@")
-	local translatedParam
-	local argName
-	instructions=()
-
-	for ((i=0;i<"${#args[@]}";i++)); do
-		case ${args[i]} in
-			--*)
-				# if the arg is long
-				argName=${args[i]#--}
-				log "DEBUG" "init.sh:globalArgHandler" "Found parameter $argName"
-				if [ "${declaredLongParam["$argName"]}" == "" ]; then continue; fi # if it's undefined, skip
-				if [ "${declaredLongParam["$argName"]}" = "value" ]; then # if it's defined as a value, take the following arg
-					if (( i + 1 >= ${#args[@]} )); then
-						printf "${RED_BOLD}%s require a value${RESET}\n" "$argName"
-						return 2
-					fi
-					parameter["$argName"]=${args[(( i + 1 ))]}
-					((i++)) # skip the value as an argument (as it's already been treated)
-				else
-					parameter["$argName"]=true # if it's not defined as a value, then it's a flag
-				fi
-				log "DEBUG" "init.sh:globalArgHandler" "resolved $argName to ${parameter["$argName"]}"
-			;;
-			-*)
-				# if the arg is short, just translate it to the long arg and treat it the exact same way
-				translatedParam=${declaredShortParam["${args[i]#-}"]}
-				log "DEBUG" "init.sh:globalArgHandler" "Found parameter $translatedParam"
-				if [ "$translatedParam" == "" ]; then continue; fi
-				if [ "${declaredLongParam["$translatedParam"]}" = "value" ]; then
-					if (( i + 1 >= ${#args[@]} )); then
-						printf "${RED_BOLD}%s require a value${RESET}\n" "$translatedParam"
-						return 2
-					fi
-					parameter["$translatedParam"]=${args[(( i + 1 ))]}
-					((i++))
-				else
-					parameter["$translatedParam"]=true
-				fi
-				log "DEBUG" "init.sh:globalArgHandler" "resolved $translatedParam to ${parameter["$translatedParam"]}"
-			;;
-			*)
-				instructions+=("${args[$i]}")
-		esac
-	done
-}
-
-declare -A Sett
-function writeSettingsValue() {
-	local settingId=$1 # ID of the setting to write
-	local value=$2 # value (can be empty)
-  if [[ -z "$settingId" ]]; then
-    log "ERROR" "init.sh:writeSettingsValue" "BUG : Some argument are missing, expected argument settingId : \"$settingId\", value (optional): \"$value\""
-    printf "${YELLOW_BOLD}[BUG]${RESET}${YELLOW} Function writeSettingsValue requires 2 arguments but some are missing! Check the log file for more info\n" >&2
-    return 2
-  fi
-	tmp=$(mktemp)
-	Sett["$settingId"]=$value
-	jq ".settings.$settingId = \"$value\"" "$SHdir/settings/data/user.json" > "$tmp" && mv "$tmp" "$SHdir/settings/data/user.json"
-	log "DEBUG" "init.sh:writeSettingsValue" "wrote setting value \"$settingId\" with \"$value\""
-}
 # shellcheck source=.minecraft/SHlauncher/commands/settings.sh
-source "$SHdir/commands/settings.sh" init # loads settings, create missing keys, etc...
+source "$SHdir/commands/settings.sh" "init" # loads settings, create missing keys, etc...
 
 force_color=false
 # check https://no-color.org/ and https://force-color.org/
@@ -364,49 +252,6 @@ mkdir -p "$SHdir/versions"
 mkdir -p "$SHdir/profiles"
 mkdir -p "$SHdir/instances"
 mkdir -p "$SHdir/manifests/fabric"
-
-
-function mavenParser() {
-	local is=$1 # is for "input string"
-	log "DEBUG" "init.sh:mavenParser" "mavenParser called with $is"
-	if [ "$is" == "" ]; then
-		printf "${YELLOW_BOLD}[BUG] function mavenParser require 1 entry argument but none were ever passed! Check the log file for more info${RESET}\n"
-		log "ERROR" "init.sh:mavenParser" "BUG : Some argument are missing. Expected argument: is \"$is\""
-		return 2
-	fi
-
-	is="${is//'['/}" # remove the squares brackets
-	is="${is//']'/}"
-
-	local ext="${is##*@}"
-	if [[ "$is" == "$ext" ]]; then
-		ext="jar" # if the extension is unspecified, then it's a jar file
-	else
-		is="${is%@*}" # else it's whatever the extension is
-	fi
-
-	IFS=':' read -ra parts <<< "$is"
-	local group="${parts[0]}"
-	local artifact="${parts[1]}"
-	local version="${parts[2]}"
-
-	if [ "${#parts[@]}" -ge 4 ]; then
-		local classifier="${parts[3]}"
-	else
-		local classifier=""
-	fi
-
-	local groupPath="${group//./\/}" # replace dots with forward slashes 
-	local filename="${artifact}-${version}" # build the filename
-	if [[ -n "$classifier" ]]; then
-		filename+="-$classifier"
-	fi
-	filename+=".$ext"
-
-	local path="$groupPath/$artifact/$version/$filename" # build the final path
-	log "DEBUG" "init.sh:mavenParser" "resolved $is to $path"
-	printf '%s' "${path%$'\r'}"
-}
 
 echo "Downloading manifests"
 log "DEBUG" "init.sh" "Downloading manifests..."
@@ -467,4 +312,3 @@ history -r
 log "INFO" "init.sh" "SHlauncher startup process completed, switching to core.sh"
 # shellcheck source=.minecraft/SHlauncher/core.sh
 source "$SHdir/core.sh" "$@"
-exit
