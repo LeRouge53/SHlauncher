@@ -1,10 +1,7 @@
-# shellcheck shell=bash
-# shellcheck disable=SC2059
-
 function terminate() {
-	history -w
+	history -w 2>/dev/null # sometimes (this function can be called before HISTFILE is set. and it creates useless log)
 	history -c
-	HISTFILE="$HOME/.bash_history" 2>/dev/null # sometimes (this function can be called before HISTFILE is set. and it creates useless log)
+	HISTFILE="$HOME/.bash_history"
 	history -r
 	set +x
 }
@@ -15,7 +12,7 @@ printf "${RED}SHlauncher has crashed! :${RESET}\n"
 case $1 in 
 	"CD_FAIL")
 		# triggers if a cd command fails
-		echo " The launcher failed to start due to a working directory switch error."
+		echo " The launcher crashe due to a working directory switch error."
 		echo " - It could be due to insufficient authorizations, an incomplete installation or issues with the disk."
 		terminate
 		exit 2
@@ -40,21 +37,23 @@ case $1 in
 	;;
 	"SETT_LOAD_FAIL")
 		# triggers if settings.sh fails to load the settings 
-		echo " The launcher failed to start because it failed to load the main setting file (system.json)"
-		echo " - This is most likely caused by an error during installation."
-		echo " - please reinstall the launcher or restore the file located at \".minecraft/SHlauncher/settings/data/system.json\""
-		terminate
+		echo " The launcher failed to start because it failed to load the settings"
+		echo " - There could be multiple causes for this error. Please check the log file"
+		set +x
 		exit 5
 	;;
 	"LIB_LOAD_FAIL")
-		echo " The launcher failed to start because there was an error when loading the libraries. Check the log file for more info"
-		echo " - This is most likely caused by missing files in the \".minecraft/SHlauncher/libs\" folder, check the content and try again"
-		terminate
+		# triggers if any libraries failed to load for whatever reasons
+		echo " The launcher failed to start because there was an error when loading a library. Check the log file for more info"
+		echo " - This is most likely caused by missing files in the \".minecraft/SHlauncher/libs\" folder."
+		echo " - This crash could also be autonomously triggered"
+		set +x
 		exit 6
 	;;
 	*)
 		# everything else
 		echo " The launcher crashed for an unspecified reason : $1."
+		echo " - The log file probably contains more info"
 		terminate
 		exit 255
 esac

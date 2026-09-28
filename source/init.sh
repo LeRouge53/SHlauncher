@@ -60,6 +60,12 @@ if ! source "$SHdir/libs/argSys.sh"; then
 	libFail
 fi
 
+#shellcheck source=.minecraft/SHlauncher/libs/utils.sh
+if ! source "$SHdir/libs/utils.sh"; then
+	log "FATAL" "init.sh" "Failed to load utils.sh, crash imminent"
+	libFail
+fi
+
 set +e
 
 debug=false # some default values before treating the arguments
@@ -94,7 +100,7 @@ while true; do
 			shift
 		;;
 		"--trace")
-			trace=true # set -x
+			trace=true # set -x, comes with verbose mode
 			shift
 		;;
 		"--nocip")
@@ -111,7 +117,7 @@ while true; do
 			shift 2
 		;;
 		"--no-internet")
-			onlineMode=false
+			onlineMode=false # assumes no internet is present
 			log "WARN" "init.sh:argHandler" "Assuming no internet"
 			shift
 		;;

@@ -1,0 +1,4 @@
+This is not a setting. It is part of a safety system that makes sure the settings are loaded properly
+
+If the key exist, any other value than "true" or "false" WILL crash the launcher at startup.
+If you accidentally tampered the key (and are stuck in a crash-loop), delete the user settings file (.minecraft/SHlauncher/settings/data/user.json) or reset the key to a valid value

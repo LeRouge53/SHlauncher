@@ -35,7 +35,7 @@ function install() {
 			fi
 			printf "${BLUE_BOLD}Downloading target java...${RESET}\n"
 			# set the url and download it
-			url=https://api.adoptium.net/v3/binary/latest/"${version}"/ga/"$(detect_os)"/"$(detect_arch)"/"${imageType}"/hotspot/normal/eclipse
+			url=https://api.adoptium.net/v3/binary/latest/"${version}"/ga/"${osName}"/"$(detectArch)"/"${imageType}"/hotspot/normal/eclipse
 			if ! exceptionCatch "java.sh:install" curl -LsS --retry 5 --retry-delay 2 "$url" -o ./temp_archive.compressed; then
 				printf "${RED}Failed to download Java, an issue occurred when attempting to download. Check the log file for more info${RESET}\n"
 				return 1
@@ -89,24 +89,6 @@ function helpPage() {
 	printf " - help : Prints this help\n"
 	printf " - \"-r\" | \"--reinstall\" : Allows the reinstallation of a java instance\n"
 	printf " - \"-j\" | \"--jdk\" : Manages the java installation as a JDK instead of a JRE\n"
-}
-
-detect_os() {
-	case "$OSTYPE" in
-		msys*|cygwin*|win32*)  echo "windows" ;;
-		darwin*)               echo "osx"     ;;
-		linux*)                echo "linux"   ;;
-		*)                     echo "unknown" ;;
-	esac
-}
-detect_arch() {
-	local arch; arch=$(uname -m)
-	case "$arch" in
-		i386|i686)   echo "x86"    ;;
-		x86_64)      echo "x86_64" ;;
-		aarch64)     echo "aarch64"  ;;
-		*)           echo "$arch"  ;;
-	esac
 }
 
 function argHandler() {

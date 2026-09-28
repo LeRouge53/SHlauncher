@@ -1,3 +1,5 @@
+
+
 function list() {
 	printf "|=================================================================================================================================================|\n"
 	printf "| %-50s | %-30s | %-42s | %-12s |\n" "SETTING NAME" "SETTING ID" "VALUE" "TYPE"
@@ -364,12 +366,13 @@ function init() {
 	fi
 	local currentSettingsVersion="0.0.1"
 	log "INFO" "settings.sh:init" "Started loading settings. Compatible version is $currentSettingsVersion"
+	
 	if ! [[ -f "data/system.json" ]]; then
 		log "FATAL" "settings.sh:init" "system.json was not found. Crash imminent"
-		# shellcheck disable=SC2154 disable=SC1091
+		# shellcheck source=../crashHandler.sh
 		source "$SHdir/crashHandler.sh" SETT_LOAD_FAIL
 	elif ! [[ -f "data/user.json" ]]; then
-	log "WARN" "settings.sh:init" "No user settings file found. creating..."
+	log "WARN" "settings.sh:init" "No user settings file detected. creating..."
 		printf "No user setting file detected, creating...\n"
 		jq -n --arg SettingsVersion "$currentSettingsVersion" \
 		'{
@@ -382,7 +385,7 @@ function init() {
 	elif [ "$(jq -r '.settingsVersion' "data/system.json")" != "$currentSettingsVersion" ]; then
 		log "FATAL" "settings.sh:init" "Encountered an unsupported version $(jq -r '.settingsVersion' "data/user.json"), cannot continue"
 		printf "${YELLOW_BOLD}[BUG]${YELLOW} Unsupported setting version %s, not continuing\n${RESET}" "$(jq -r '.settingsVersion' "data/user.json")"
-		# shellcheck disable=SC2154 disable=SC1091
+		# shellcheck source=../crashHandler.sh
 		source "$SHdir/crashHandler.sh" SETT_LOAD_FAIL
 	else
 		while IFS=$'\n' read -r object; do
@@ -401,6 +404,17 @@ function init() {
 				log "DEBUG" "settings.sh:init" "Applying value \"$value\" for key \"$key\""
 			fi
 		done < <(jq -c '.settings | to_entries[]' "data/system.json")
+
+		case "${Sett[HealthCheck]}" in
+			"true" | "false")
+				true # load succeeded (at least this key is valid)
+			;;
+			*)
+				log "FATAL" "settings.sh:init" "Setting load failed (HealthCheck key is invalid); crash imminent"
+				# shellcheck source=../crashHandler.sh
+				source "$SHdir/crashHandler.sh" SETT_LOAD_FAIL
+		esac
+
 		export Sett
 		AreSettingsInited="Yh it's done"
 		log "DEBUG" "settings.sh:init" "Finished loading settings"

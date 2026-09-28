@@ -264,25 +264,6 @@ function install() {
 		tr -d '\r'
 	}
 
-	function detect_os() {
-		case "$OSTYPE" in
-			msys*|cygwin*|win32*) echo "windows";;
-			darwin*) echo "osx";;
-			linux*) echo "linux";;
-			*) echo "unknown";;
-		esac
-	}
-
-	function detect_arch() {
-		local arch; arch=$(uname -m)
-		case "$arch" in
-			i386|i686) echo "x86";;
-			x86_64) echo "x86_64";;
-			aarch64) echo "arm64";;
-			*) echo "$arch";;
-		esac
-	}
-
 	targetVers=$1
 	modlVers=$2
 
@@ -892,7 +873,7 @@ function install() {
 				while IFS= read -r entry; do
 					while IFS= read -r val; do
 						jvmArgs+=("$val")
-					done < <(evaluateArgEntry "$entry" "$(detect_os)" "" "$(detect_arch)")
+					done < <(evaluateArgEntry "$entry" "${osName}" "" "$(detectArch)")
 				done < <(jq -c '((.arguments["default-user-jvm"] // []) + (.arguments.jvm // []))[]' "$versionJson")
 				delete=("-Xms2G" "-Xmx4G")
 				for target in "${delete[@]}"; do
@@ -931,7 +912,7 @@ function install() {
 				while IFS= read -r entry; do
 					while IFS= read -r val; do
 						jvmArgs+=("$val")
-					done < <(evaluateArgEntry "$entry" "$osName" "" "$(detect_arch)")
+					done < <(evaluateArgEntry "$entry" "$osName" "" "$(detectArch)")
 				done < <(jq -c '.arguments.jvm[]' "$versionJson")
 
 				gameArgsJson=$(jq '.arguments.game' "$versionJson")
@@ -956,7 +937,7 @@ function install() {
 			while IFS="" read -r entry; do
 				while IFS= read -r val; do
 					jvmArgs+=("$val")
-				done < <(evaluateArgEntry "$entry" "$osName" "" "$(detect_arch)")
+				done < <(evaluateArgEntry "$entry" "$osName" "" "$(detectArch)")
 			done < <(jq -c '.arguments.jvm[]' "$versionJson" 2>/dev/null) # if .argument.jvm doesn't exist, then we will have an empty array which is fine
 			jvmArgs+=("-DbundlerRepoDir=$MCdir/libraries")
 

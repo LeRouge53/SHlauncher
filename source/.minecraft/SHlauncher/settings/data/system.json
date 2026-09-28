@@ -85,6 +85,14 @@
             "default": false,
             "hidden": false
         },
+        "HealthCheck": {
+            "displayName": "makes sure the settings are loaded properly",
+            "type": "boolean",
+            "description": "descriptions/HealthCheck.txt",
+            "isProtected": false,
+            "default": true,
+            "hidden": true
+        },
         "SelectedProfile": {
             "displayName": "Selected profile",
             "type": "string",

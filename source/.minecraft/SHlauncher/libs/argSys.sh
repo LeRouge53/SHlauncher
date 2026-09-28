@@ -1,3 +1,5 @@
+# This lib
+
 function declareArgs() {
 	local long="$1" # foo (long parameter name)
 	local short="$2" # f (short parameter name linked to the long one). Is optional
