@@ -1,5 +1,5 @@
 function terminate() {
-	history -w 2>/dev/null # sometimes (this function can be called before HISTFILE is set. and it creates useless log)
+	history -w 2>/dev/null # sometimes (this function can be called before HISTFILE is set. and it creates a useless error)
 	history -c
 	HISTFILE="$HOME/.bash_history"
 	history -r

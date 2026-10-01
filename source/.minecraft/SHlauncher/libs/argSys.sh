@@ -1,4 +1,8 @@
-# This lib
+# This lib manages the arguments passed to a command. Not every command uses it
+
+declare -A parameter
+declare -A declaredLongParam
+declare -A declaredShortParam
 
 function declareArgs() {
 	local long="$1" # foo (long parameter name)

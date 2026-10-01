@@ -1,3 +1,6 @@
+# shellcheck disable=SC2154
+# this lib is used basically everywere in the launcher to register things to the log file
+
 exec 3>&1 # create file descriptor 3 (used to capture stderr only in exceptionCatch)
 
 function log() {

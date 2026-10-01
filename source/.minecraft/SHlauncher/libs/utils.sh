@@ -1,3 +1,5 @@
+# the rest
+
 function detectArch() {
 	case "$(uname -m)" in
 		i386|i686)   echo "x86"     ;;

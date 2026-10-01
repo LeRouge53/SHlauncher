@@ -38,7 +38,6 @@ set -e # I don't want anything bad to happen here
 #shellcheck source=.minecraft/SHlauncher/libs/logging.sh
 source "$SHdir/libs/logging.sh" || libFail 
 
-declare -gA Sett
 #shellcheck source=.minecraft/SHlauncher/libs/settingSys.sh
 if ! source "$SHdir/libs/settingSys.sh"; then
 	log "FATAL" "init.sh" "Failed to load settingSys.sh, crash imminent"
@@ -51,9 +50,6 @@ if ! source "$SHdir/libs/mavenParser.sh"; then
 	libFail
 fi
 
-declare -A parameter
-declare -A declaredLongParam
-declare -A declaredShortParam
 #shellcheck source=.minecraft/SHlauncher/libs/argSys.sh
 if ! source "$SHdir/libs/argSys.sh"; then
 	log "FATAL" "init.sh" "Failed to load argSys.sh, crash imminent"

@@ -1,3 +1,5 @@
+# this lib is just a maven coordinate parser : gets a maven coordinate and turn it into a file path
+
 function mavenParser() {
 	local is=$1 # is for "input string"
 	log "DEBUG" "init.sh:mavenParser" "mavenParser called with $is"

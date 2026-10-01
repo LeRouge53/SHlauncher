@@ -1,5 +1,7 @@
 # shellcheck disable=SC2154
+# This lib focuses on everything setting-related
 
+declare -gA Sett
 function writeSettingsValue() {
 	local settingId=$1 # ID of the setting to write
 	local value=$2 # value (can be empty)
