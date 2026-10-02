@@ -164,6 +164,7 @@ function launchCommand() {
 	fi
 	commandLineHandler "$@"
 }
+
 [ -n "$*" ] && {
 	log "INFO" "core.sh" "Found command \"$*\" to execute"
 	launchCommand "$@" # if there is any, execute the command provided by init.sh

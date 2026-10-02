@@ -97,8 +97,8 @@ function launchClientNeoforge() {
 	mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$versionProfile.json")
 
 	# after getting the inheritance, we can get the others info which are vanilla only
-	IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
-		<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
+	IFS='|' read -r runtime assetIndex nativesDir log4jconf < \
+		<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
 	mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
 	mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
 
@@ -113,8 +113,8 @@ function launchClientFabric() {
 	mapfile -t moddedJvmArgs < <(jq -r '.moddedJvmArgs[]' "$SHdir/versions/$versionProfile.json")
 	
 	# same there
-	IFS='|' read -r runtime assetIndex assetRoot nativesDir log4jconf < \
-		<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.assetRoot)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
+	IFS='|' read -r runtime assetIndex nativesDir log4jconf < \
+		<(jq -r '"\(.runtime)|\(.assetIndexId)|\(.nativesDir)|\(.log4jconf)"' "$SHdir/versions/$inheritance.json")
 	mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
 	mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
 
