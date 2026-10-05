@@ -22,3 +22,4 @@
 ======== 0.5.1 ========
  - Added internal changes (the launcher is now more centralized under a "libs/" folder)
  - Fixed minor bugs
+ - Cleaned shellcheckrc (+ other files)
