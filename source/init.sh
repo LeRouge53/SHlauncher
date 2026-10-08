@@ -72,7 +72,7 @@ cip=true
 onlineMode=true
 
 SHlname="SHlauncherBE"
-SHlvers="0.5.0" # edit version here
+SHlvers="0.5.1" # edit version here
 
 IFSBak=$' \t\n'
 
