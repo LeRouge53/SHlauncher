@@ -1013,7 +1013,7 @@ function install() {
 				--arg name "$fullModLoaderVers" \
 				--arg inheritFrom "$inheritedVers" \
 				--arg versionType "$versionType" \
-				--arg moddedCp "$moddedCp" \
+				--arg moddedCp "$classpath" \
 				--argjson moddedGameArgs "$gameArgsJson" \
 				--argjson moddedJvmArgs "$jvmArgsJson" \
 				--arg mainClass "$mainClass" \
