@@ -71,7 +71,7 @@ portable=false
 cip=true
 onlineMode=true
 
-SHlname="SHlauncherBE"
+SHlname="SHlauncher"
 SHlvers="0.5.0" # edit version here
 
 IFSBak=$' \t\n'

@@ -1013,6 +1013,10 @@ function install() {
 				--arg name "$fullModLoaderVers" \
 				--arg inheritFrom "$inheritedVers" \
 				--arg versionType "$versionType" \
+				--arg moddedCp "$moddedCp" \
+				--argjson moddedGameArgs "$gameArgsJson" \
+				--argjson moddedJvmArgs "$jvmArgsJson" \
+				--arg mainClass "$mainClass" \
 				'{
 					"name": $name,
 					"modloader": "neoforge",

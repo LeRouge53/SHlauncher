@@ -49,7 +49,7 @@ function substituteArg() {
 function clientArgumentParser() {
 	# this function treats the variables to be able to launch the game
 	jvmArgs+=("${additionalJvmArgs[@]}")
-	if [ "$modloader" != "vanilla" ]; then jvmArgs+=("${moddedJvmArgs[@]}"); fi
+	[ "$modloader" != "vanilla" ] && jvmArgs+=("${moddedJvmArgs[@]}")
 	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
 	for arg in "${jvmArgs[@]}"; do
 		finalJvmArgs+=("$(substituteArg "$arg")")
@@ -57,7 +57,7 @@ function clientArgumentParser() {
 	log "DEBUG" "launch.sh:launch" "finalJVMArgs : ${finalJvmArgs[*]}"
 
 	finalGameArgs=()
-	if [ "$modloader" != "vanilla" ]; then gameArgs+=("${moddedGameArgs[@]}"); fi
+	[ "$modloader" != "vanilla" ] && gameArgs+=("${moddedGameArgs[@]}")
 
   	for arg in "${gameArgs[@]}"; do
 		finalGameArgs+=("$(substituteArg "$arg")")
@@ -79,18 +79,32 @@ function checkJava() {
 	fi
 }
 
+function mcNotInstalled() {
+	log "ERROR" "launch.sh:$1" "Failed to launch the game, game seems not installed"
+	printf "${RED_BOLD}The target minecraft version does not seem to be installed. Please reinstall it using \"version install <version>\"${RESET}\n"
+}
 
-function launchClientVanilla() {
+function launchClientVanilla() { 
+	if ! [ -f "$SHdir/versions/$versionProfile.json" ]; then
+		mcNotInstalled "launchClientVanilla"
+		return 1
+	fi
+
 	IFS='|' read -r version versionType runtime assetIndex mainClass nativesDir log4jconf classpath < \
 		<(jq -r '"\(.name)|\(.versionType)|\(.runtime)|\(.assetIndexId)|\(.mainClass)|\(.nativesDir)|\(.log4jconf)|\(.classpath)"' "$SHdir/versions/$versionProfile.json")
 	mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$versionProfile.json")
 	mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$versionProfile.json")
 
-	checkJava || return
+	checkJava || return 1
 	clientArgumentParser
 }
 
 function launchClientNeoforge() {
+	if ! [ -f "$SHdir/versions/$versionProfile.json" ]; then
+		mcNotInstalled "launchClientNeoforge"
+		return 1
+	fi
+
 	IFS='|' read -r side version inheritance versionType mainClass classpath < \
 		<(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$versionProfile.json")
 	mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$versionProfile.json")
@@ -102,11 +116,16 @@ function launchClientNeoforge() {
 	mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
 	mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
 
-	checkJava || return
+	checkJava || return 1
 	clientArgumentParser
 }
 
 function launchClientFabric() {
+	if ! [ -f "$SHdir/versions/$versionProfile.json" ]; then
+		mcNotInstalled "launchClientFabric"
+		return 1
+	fi
+
 	IFS='|' read -r side version inheritance versionType mainClass classpath < \
 		<(jq -r '"\(.side)|\(.name)|\(.inheritsFrom)|\(.versionType)|\(.mainClass)|\(.moddedCp)"' "$SHdir/versions/$versionProfile.json")
 	mapfile -t moddedGameArgs < <(jq -r '.moddedGameArgs[]' "$SHdir/versions/$versionProfile.json")
@@ -118,18 +137,23 @@ function launchClientFabric() {
 	mapfile -t gameArgs < <(jq -r '.gameArgs[]' "$SHdir/versions/$inheritance.json")
 	mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$inheritance.json")
 
-	checkJava || return
+	checkJava || return 1
 	clientArgumentParser
 }
 
 
 function launchServerVanilla() {
+	if ! [ -f "$SHdir/versions/$versionProfile-server.json" ]; then
+		mcNotInstalled "launchServerVanilla"
+		return 1
+	fi
+
 	IFS='|' read -r runtime < \
 		<(jq -r '"\(.runtime)"' "$SHdir/versions/$versionProfile-server.json")
 	gameArgs=() # useless so empty (arg can still be specified with instances)
 	mapfile -t jvmArgs < <(jq -r '.jvmArgs[]' "$SHdir/versions/$versionProfile-server.json")
 
-	checkJava || return
+	checkJava || return 1
 
 	jvmArgs+=("${additionalJvmArgs[@]}")
 	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
@@ -153,12 +177,17 @@ function launchServerVanilla() {
 }
 
 function launchServerNeoforge() {
+	if ! [ -f "$SHdir/versions/$versionProfile-server.json" ]; then
+		mcNotInstalled "launchServerNeoforge"
+		return 1
+	fi
+
 	IFS='|' read -r runtime < \
 		<(jq -r '"\(.runtime)"' "$SHdir/versions/$versionProfile-server.json")
 	gameArgs=()
 	mapfile -t launchArgs < <(jq -r '.launchArgs[]' "$SHdir/versions/$versionProfile-server.json")
 
-	checkJava || return
+	checkJava || return 1
 
 	finalLaunchArgs=("-Xms$MinRam" "-Xmx$MaxRam")
 	finalLaunchArgs+=("${additionalJvmArgs[@]}")
@@ -173,6 +202,11 @@ function launchServerNeoforge() {
 }
 
 function launchServerFabric() {
+	if ! [ -f "$SHdir/versions/$versionProfile-server.json" ]; then
+		mcNotInstalled "launchServerFabric"
+		return 1
+	fi
+
 	finalJvmArgs=("-Xms$MinRam" "-Xmx$MaxRam")
 	finalJvmArgs+=("${additionalJvmArgs[@]}")
 
@@ -183,7 +217,7 @@ function launchServerFabric() {
 	
 	IFS='|' read -r runtime < \
 		<(jq -r '"\(.runtime)"' "$SHdir/versions/$inheritance.json")
-	checkJava || return
+	checkJava || return 1
 
 	finalJvmArgs+=("-cp" "$(substituteArg "${classpath}")")
 
@@ -248,13 +282,13 @@ function prepareLaunch() {
 
 			case "$modloader" in
 				"vanilla")
-					launchClientVanilla "$launchProf" "$launchInst"
+					launchClientVanilla "$launchProf" "$launchInst" || return 1
 				;;
 				"neoforge")
-					launchClientNeoforge "$launchProf" "$launchInst"
+					launchClientNeoforge "$launchProf" "$launchInst" || return 1
 				;;
 				"fabric")
-					launchClientFabric "$launchProf" "$launchInst"
+					launchClientFabric "$launchProf" "$launchInst" || return 1
 				;;
 				*)
 					log "ERROR" "launch.sh:prepareLaunch" "Unrecognized modloader \"$modloader\", cannot continue launch"
@@ -301,7 +335,7 @@ function prepareLaunch() {
 
 			case "$modloader" in
 				"vanilla")
-					launchServerVanilla "$launchProf" "$launchInst"
+					launchServerVanilla "$launchProf" "$launchInst" || return 1
 					
 					printf "${BLUE_BOLD}Finished building command, launching server...${RESET}\n"
 					echo "${java}" "${finalJvmArgs[@]}" -jar "$MCdir/versions/$versionProfile/$versionProfile-server.jar" "${finalGameArgs[@]}" > "$MCdir/.lastLaunchedGame"
@@ -309,7 +343,7 @@ function prepareLaunch() {
 					exitCode=$?
 				;;
 				"neoforge")
-					launchServerNeoforge "$launchProf" "$launchInst"
+					launchServerNeoforge "$launchProf" "$launchInst" || return 1
 
 					printf "${BLUE_BOLD}Finished building command, launching server...${RESET}\n"
 					echo "${java}" "${finalLaunchArgs[@]}" > "$MCdir/.lastLaunchedGame"
@@ -317,7 +351,7 @@ function prepareLaunch() {
 					exitCode=$?
 				;;
 				"fabric")
-					launchServerFabric "$launchProf" "$launchInst"
+					launchServerFabric "$launchProf" "$launchInst" || return 1
 
 					printf "${BLUE_BOLD}Finished building command, launching server...${RESET}\n"
 					echo "${java}" "${finalJvmArgs[@]}" "${mainClass}" "${gameArgs[@]}" > "$MCdir/.lastLaunchedGame"
