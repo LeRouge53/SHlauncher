@@ -2,7 +2,7 @@
 
 function about() {
 	printf "${BLUE}SHlauncher${RESET}, created by LeRouge53\n"
-	printf "${BLUE}Git repository${RESET}: https://github.com/leRouge53/SHlauncher\n"
+	printf "${BLUE}Git repository${RESET}: https://github.com/LeRouge53/SHlauncher\n"
 	printf "${BLUE}license${RESET}: GPL v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)\n"
 	printf "Thanks you for using this launcher\n"
 
@@ -188,7 +188,7 @@ function helpPage() {
 	printf " - about (or nothing): Show useful information and links\n"
 	printf " - help: Print this help\n"
 	printf " - whatsnew | changelog: Prints the launcher's local changelog"
-	printf ' - log: Display the log file in the user'\''s editor (require an exported $EDITOR variable)'
+	printf " - log: Display the log file in the user's editor (require an exported \$EDITOR variable)\n"
 }
 
 function argHandler() {

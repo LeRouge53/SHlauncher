@@ -31,7 +31,7 @@ function install() {
 			fi
 			if [ "$version" == 16 ]; then
 				printf "${YELLOW}Warning, the selected version (16) is only available as JDK${RESET}\n"
-				imageType="jdk" # adoptium doesn't provide java 16 in JRE, so we need a JDK
+				imageType="jdk" # Adoptium doesn't provide java 16 in JRE, so we need a JDK
 			fi
 			printf "${BLUE_BOLD}Downloading target java...${RESET}\n"
 			# set the url and download it
@@ -47,15 +47,15 @@ function install() {
 			# Unpack the archive based on the operating system
 			if [ "$osName" = "windows" ]; then
 				tmpfile=$(mktemp)
-            	unzip -Z1 ./temp_archive.compressed > "$tmpfile"
-            	read -r DirToNuke<"$tmpfile"
-            	rm "$tmpfile"
-            	if ! exceptionCatch "java.sh:install" unzip -qod "$versionDir" ./temp_archive.compressed; then
+				unzip -Z1 ./temp_archive.compressed > "$tmpfile"
+				read -r DirToNuke<"$tmpfile"
+				rm "$tmpfile"
+				if ! exceptionCatch "java.sh:install" unzip -qod "$versionDir" ./temp_archive.compressed; then
 					printf "${RED_BOLD}An error occurred when attempting to unzip the java archive, check the log file for more info${RESET}\n"
 					return 1
 				fi
-            	mv "$versionDir/$DirToNuke"* "$version"
-            	command -p rm -rf "${versionDir:?}/$DirToNuke"
+				mv "$versionDir/$DirToNuke"* "$version"
+				command -p rm -rf "${versionDir:?}/$DirToNuke"
 			else
 				if ! exceptionCatch "java.sh:install" tar xzf ./temp_archive.compressed -C "$version" --strip-components=1; then
 					printf "${RED_BOLD}An error occurred when attempting to unzip the java archive, check the log file for more info${RESET}\n"

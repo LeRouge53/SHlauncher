@@ -69,6 +69,7 @@ function create() {
 	version=$3
 	modloaderVersion=$4
 
+	# shellcheck disable=SC2194
 	case "" in # check if any var is empty
 		"$name" | "$modloader" | "$version")
 		printf "${RED_BOLD}One or more argument were forgotten, this command require at least a name, a modloader (can be vanilla), and a minecraft version${RESET}\n"
