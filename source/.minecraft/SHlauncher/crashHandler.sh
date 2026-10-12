@@ -24,6 +24,13 @@ case $1 in
 		terminate
 		exit 130
 	;;
+	"SIGSEGV")
+		# trigger if a segfault happened
+		echo " Segmentation fault! Something really wrong happened"
+		echo " - Please report the crash to the developer or the plugin dev if the launcher has any"
+		terminate
+		exit 139
+	;;
 	"POSIX")
 		# triggers if the script is launched with a posix shell
 		echo " The launcher is currently being run by an incompatible POSIX shell (like sh, ash or dash)"

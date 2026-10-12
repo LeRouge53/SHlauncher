@@ -163,7 +163,7 @@ function install() {
 					if $rule.os == null or $rule.os.name == $os then
 						$rule.action == "allow" 
 					else . 
-					end ) 
+					end )
 			end ) 
 			as $include | 
 			if $include then 
@@ -424,10 +424,8 @@ function install() {
 			installVars["ROOT"]="$MCdir" 
 			installVars["INSTALLER"]="$versDir/neoforge-$fullModLoaderVers/neoforge-${fullModLoaderVers}-installer.jar"
 			installVars["SIDE"]="$side"
-			
 			installVars["MINECRAFT_JAR"]="$versDir/$inheritedVers/$inheritedVers.jar" # vanilla jar file
 			${parameter[server]} && installVars["MINECRAFT_JAR"]="$versDir/$inheritedVers/$inheritedVers-server.jar"
-			
 			installVars["MINECRAFT_VERSION"]="$targetVers" # game version 
 			installVars["LIBRARY_DIR"]="$MCdir/libraries/"
 			installVars["VERSION_JSON"]="$versDir/$inheritedVers/$inheritedVers.json" # vanilla game JSON
@@ -518,6 +516,10 @@ function install() {
 					return 1
 				fi
 			fi
+		;;
+		"all")
+			printf "${RED_BOLD}Please specify a modloader which isn't \"all\"${RESET}\n"
+			return 2
 		;;
 	esac
 
@@ -1117,11 +1119,11 @@ function list() {
 			if [ "$(ls)" == "" ]; then printf "${YELLOW}No versions are installed yet${RESET}\n"; fi
 			for vers in *.json; do
 				log "DEBUG" "version.sh:list" "Checking version \"$vers\""
-				read -r name versionType runtime currentModloader side<<< "$(jq -r '"\(.name) \(.versionType) \(.runtime?) \(.modloader) \(.side)"' "$vers")"
+				read -r name versionType runtime currentModloader side<<< "$(jq -r '"\(.name) \(.versionType) \(.runtime) \(.modloader) \(.side)"' "$vers")"
 
 				[ "$side" = "server" ] && name=${name//-server/}
 				if [ "$currentModloader" = "null" ]; then currentModloader="vanilla"; fi
-				if [ "$currentModloader" = "$modloader" ]; then
+				if [ "$currentModloader" = "$modloader" ] || [ "$modloader" == "all" ]; then
 					printf "${BLUE_BOLD}$name :${RESET}\n"
 					echo " - side: $side"
 					echo " - Modloader: $currentModloader"
@@ -1379,31 +1381,90 @@ function list() {
 function remove() {
 	targetVers=$1
 	modlVers=$2
-	if [ "$modloader" = "vanilla" ]; then
-		if [[ -d "./versions/$targetVers" ]]; then
-			log "INFO" "version.sh:remove" "Deleting version $targetVers"
-			printf "${RED}Deleting version %s, you can reinstall it by executing the command \"version install %s\"${RESET}\n" "$targetVers" "$targetVers"
-			printf "${RED}Please note that modded versions of the game usually relies on vanilla versions to work properly${RESET}\n" "$targetVers" "$targetVers"
-			printf "${YELLOW}Note, the libraries and the assets used by this version are not deleted as they can be used for other versions as well${RESET}\n"
-			command -p rm -r -- "./versions/$targetVers"
-			command -p rm -- "./SHlauncher/versions/$targetVers.json"
-			printf "${BLUE}Don't forget to delete the instances that uses this version${RESET}\n"
+
+	case "$modloader" in
+		"vanilla")
+			true
+		;;
+		"forge")
+			local trunkMcVers
+			# shellcheck disable=SC2001
+			trunkMcVers=$(echo "$targetVers" | sed 's/^1\.//')
+			local fullModLoaderVers="${trunkMcVers}.${modlVers}"
+		;;
+		"neoforge")
+			local trunkMcVers
+			# shellcheck disable=SC2001
+			trunkMcVers=$(echo "$targetVers" | sed 's/^1\.//')
+			local fullModLoaderVers="${trunkMcVers}.${modlVers}"
+		;;
+		"fabric")
+			local fullModLoaderVers="${targetVers}-${modlVers}"
+		;;
+		"quilt")
+			true # unsupported
+		;;
+		"all")
+			printf "${RED_BOLD}Please specify a modloader which isn't \"all\"${RESET}\n"
+			return 2
+		;;
+	esac
+
+	if ! ${parameter[server]}; then
+		if [ "$modloader" = "vanilla" ]; then
+			if [[ -d "./versions/$targetVers" ]]; then
+				log "INFO" "version.sh:remove" "Deleting version $targetVers"
+				printf "${RED}Deleting version %s..${RESET}\n" "$targetVers"
+				printf "${RED}Please note that modded versions of the game usually relies on vanilla versions to work properly${RESET}\n"
+				printf "${YELLOW}Note, the libraries and the assets used by this version are not deleted as they can be used for other versions as well${RESET}\n"
+				command -p rm -r -- "./versions/$targetVers"
+				command -p rm -- "./SHlauncher/versions/$targetVers.json"
+				printf "${BLUE}Don't forget to delete the instances that uses this version${RESET}\n"
+			else
+				printf "${RED_BOLD}This version doesn't exist or is not installed${RESET}\n"
+			fi
 		else
-			printf "${RED_BOLD}This version doesn't exist or is not installed${RESET}\n"
+			# shellcheck disable=SC2001
+			trunkMcVers=$(echo "$targetVers" | sed 's/^1\.//')
+			fullModLoaderVers="${trunkMcVers}.${modlVers}"
+			if [[ -d "./versions/$modloader-$fullModLoaderVers" ]]; then
+				log "INFO" "version.sh:remove" "Deleting version $fullModLoaderVers"
+				printf "${RED}Deleting version %s..${RESET}\n" "$fullModLoaderVers"
+				printf "${YELLOW}Note, the libraries and the assets used by this version are not deleted as they can be used for other versions as well${RESET}\n"
+				command -p rm -r -- "./versions/$modloader-$fullModLoaderVers"
+				command -p rm -- "./SHlauncher/versions/$modloader-$fullModLoaderVers.json"
+				printf "${BLUE}Don't forget to delete the instances that uses this version${RESET}\n"
+			else
+				printf "${RED_BOLD}This version doesn't exist or is not installed${RESET}\n"
+			fi
 		fi
-	elif [ "$modloader" = "neoforge" ]; then
-		# shellcheck disable=SC2001
-		trunkMcVers=$(echo "$targetVers" | sed 's/^1\.//')
-		fullModLoaderVers="${trunkMcVers}.${modlVers}"
-		if [[ -d "./versions/neoforge-$fullModLoaderVers" ]]; then
-			log "INFO" "version.sh:remove" "Deleting version $fullModLoaderVers"
-			printf "${RED}Deleting version neoforge-%s, you can reinstall it by executing the command \"version install neoforge %s %s\"${RESET}\n" "$fullModLoaderVers" "$targetVers" "$modlVers"
-			printf "${YELLOW}Note, the libraries and the assets used by this version are not deleted as they can be used for other versions as well${RESET}\n"
-			command -p rm -r -- "./versions/neoforge-$fullModLoaderVers"
-			command -p rm -- "./SHlauncher/versions/neoforge-$fullModLoaderVers.json"
-			printf "${BLUE}Don't forget to delete the instances that uses this version${RESET}\n"
+	else
+		if [ "$modloader" = "vanilla" ]; then
+			if [[ -d "./versions/$targetVers-server" ]]; then
+				log "INFO" "version.sh:remove" "Deleting version $targetVers"
+				printf "${RED}Deleting server version %s..${RESET}\n" "$targetVers"
+				printf "${RED}Please note that modded versions of the game usually relies on vanilla versions to work properly${RESET}\n" "$targetVers" "$targetVers"
+				printf "${YELLOW}Note, the libraries and the assets used by this version are not deleted as they can be used for other versions as well${RESET}\n"
+				command -p rm -r -- "./versions/$targetVers-server"
+				command -p rm -- "./SHlauncher/versions/$targetVers-server.json"
+				printf "${BLUE}Don't forget to delete the instances that uses this version${RESET}\n"
+			else
+				printf "${RED_BOLD}This version doesn't exist or is not installed${RESET}\n"
+			fi
 		else
-			printf "${RED_BOLD}This version doesn't exist or is not installed${RESET}\n"
+			# shellcheck disable=SC2001
+			trunkMcVers=$(echo "$targetVers" | sed 's/^1\.//')
+			fullModLoaderVers="${trunkMcVers}.${modlVers}"
+			if [[ -d "./versions/$modloader-$fullModLoaderVers-server" ]]; then
+				log "INFO" "version.sh:remove" "Deleting version $fullModLoaderVers"
+				printf "${RED}Deleting version %s..${RESET}\n" "$fullModLoaderVers"
+				printf "${YELLOW}Note, the libraries and the assets used by this version are not deleted as they can be used for other versions as well${RESET}\n"
+				command -p rm -r -- "./versions/$modloader-$fullModLoaderVers-server"
+				command -p rm -- "./SHlauncher/versions/$modloader-$fullModLoaderVers-server.json"
+				printf "${BLUE}Don't forget to delete the instances that uses this version${RESET}\n"
+			else
+				printf "${RED_BOLD}This version doesn't exist or is not installed${RESET}\n"
+			fi
 		fi
 	fi
 }
@@ -1422,7 +1483,7 @@ function helpPage() {
 	printf " - install [-m] <vanilla version> [<modloader version>] : Install the specified version (some version might not be supported)\n"
 	printf " - remove [-m] <vanilla version> [<modloader version>] : Remove the specified version. This instruction is quite inefficient.\n"
 	printf " - help : Print this help\n"
-	printf "\"-m\" | \"--modloader\" : Specifies the concerned modloader. Can be vanilla, Forge, Neoforge, Fabric or Quilt\n"
+	printf "\"-m\" | \"--modloader\" : Specifies the concerned modloader. Can be all, vanilla, Forge, Neoforge, Fabric or Quilt\n"
 	printf "\"-v\" | \"--version\" : Select a version \"filter\" (used as an argument with the grep command)\n"
 	printf "\"-S\" | \"--server\" : manage server instead of clients\n"
 }
@@ -1493,8 +1554,11 @@ case $modloader in
 	"quilt" | "Quilt")
 		modloader="quilt"
 	;;
+	"all"|"All")
+		modloader="all"
+	;;
 	*)
-		printf "${RED}Unknown modloader, the supported modloaders are Vanilla, Forge, Fabric, Neoforge and Quilt${RESET}\n"
+		printf "${RED_BOLD}Unknown modloader, the supported modloaders are All, Vanilla, Forge, Fabric, Neoforge and Quilt${RESET}\n"
 		return 2
 esac
 

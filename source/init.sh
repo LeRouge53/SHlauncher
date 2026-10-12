@@ -32,6 +32,9 @@ function libFail() {
 # shellcheck source=.minecraft/SHlauncher/crashHandler.sh
 trap 'echo ""; source "$SHdir/crashHandler.sh" SIGINT' INT # ctrl+c catch
 
+# shellcheck source=.minecraft/SHlauncher/crashHandler.sh
+trap 'echo ""; source "$SHdir/crashHandler.sh" SIGSEGV' SIGSEGV # segfault catch
+
 # load libs (kinda useful)
 set -e # I don't want anything bad to happen here
 
