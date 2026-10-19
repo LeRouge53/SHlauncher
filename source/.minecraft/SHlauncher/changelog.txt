@@ -23,3 +23,7 @@
  - Added internal changes (the launcher is now more centralized under a "libs/" folder)
  - Fixed minor bugs
  - Cleaned shellcheckrc (+ other files)
+======== 0.5.2 ========
+ - Fixed an installation bug regarding neoforge
+ - Fixed bugs and gave errors to some exception in the assets download part
+ - the maximum value of ThreadUsedOnAssetDownload is now 9 instead of 10 (as 10 is not a safe value)

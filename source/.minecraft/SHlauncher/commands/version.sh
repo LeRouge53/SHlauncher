@@ -652,16 +652,17 @@ function install() {
 
 			function parallelDownload() {
 				shopt -s nullglob
-				local threadNumber=$1
-				local targetFunc=$2
-				local file=$3
-				local standardErr=$4
-				local standardCrash=$5
+				local threadNumber=$1 # number of thread used (here, linked to the ThreadUsedOnAssetsDownload setting)
+				local targetFunc=$2 # target function, kinda pointless ngl
+				local file=$3 # file that will be split
+				local standardErr=$4 # the file that will be used as a bridge to transmit non-fatal error
+				local standardCrash=$5 # same but for fatal errors instead, both are optional and will be automatically set later if not specified
 
 				local tmpdir
 				tmpdir=$(mktemp -d)
+				local status=0
 				# shellcheck disable=SC1091
-				trap 'kill "${pids[@]}";rm -r "$tmpdir";shopt -u nullglob;echo ""; source "$dir"/.minecraft/SHlauncher/crashHandler.sh SIGINT; exit 2' INT
+				trap 'kill "${pids[@]}"; rm -r -- "${tmpdir:?}"; shopt -u nullglob; echo ""; source "$dir"/.minecraft/SHlauncher/crashHandler.sh SIGINT' INT # new trap, is used to terminate the workers on ctrl+C
 
 				if [ "$standardErr" == "" ]; then
 					standardErr="$tmpdir/err.progress"
@@ -686,63 +687,85 @@ function install() {
 					*)
 						true
 				esac
-
+				
 				local goal
 				goal=$(wc -l < "$file")
 				log "INFO" "version.sh:install:parallelDownload" "goal is $goal"
-				split --numeric-suffixes=1 --suffix-length=1 -n l/"$threadNumber" "$file" "$tmpdir/worker_"
+				split --numeric-suffixes=1 --suffix-length=1 -n l/"$threadNumber" "$file" "$tmpdir/worker_" || {
+					printf "${RED_BOLD}Split failed to execute properly, this may be due to a value too high assigned to the setting 'ThreadUsedOnAssetDownload', make sure this value is contained between 1 and 9 included.${RESET}\n"
+					return 1
+				}
+
 				pids=()
 				for i in $(seq 1 "$threadNumber"); do
 					"${targetFunc}" "$i" "$tmpdir/worker_$i" "$standardErr" "$standardCrash" &
 					pids+=($!)
 					log "DEBUG" "version.sh:install:parallelDownload" "launched ${targetFunc} successfully"
 				done
+
 				log "DEBUG" "version.sh:install:parallelDownload" "list of PIDs : ${pids[*]}"
 				local finished=0
 				local total=0
 
 				while [ "$finished" -lt "$threadNumber" ]; do
 					finished=0
-					for f in "$tmpdir"/worker_*.done; do
+					for f in "$tmpdir"/worker_*.done; do # Increment the "finished" counter
 						[[ -e $f ]] && ((finished++))
 					done
-
-					total=0
-					for f in "$tmpdir"/progress.*; do
-						total=$(( total+"$(wc -l < "$f")" ))
-						if [ -s "$standardErr" ]; then
-							printf "${YELLOW}%s${RESET}\n" "$( <"$standardErr" )"
-							log "WARN" "version.sh:install:parallelDownload" "Error caught from worker (non-fatal): $( <"$standardErr" )"
-							echo "" > "$standardErr"
-						fi
-
-						if [ -s "$standardCrash" ]; then
-							printf "${YELLOW}%s${RESET}\n" "$( <"$standardCrash" )"
-							log "ERROR" "version.sh:install:parallelDownload" "Installation aborted, crash caught from worker : $( <"$standardCrash" )"
-							printf "${RED}Error is non-recoverable. Please retry${RESET}\n"
-							kill "${pids[@]}"
-							wait "${pids[@]}" 2>/dev/null
-							echo "" > "$standardCrash"
-							rm -r "${tmpdir:?}"
-							# shellcheck disable=SC1091
-							trap 'echo ""; source "$dir"/.minecraft/SHlauncher/crashHandler.sh SIGINT; exit 2' INT
-							shopt -u nullglob
-							return 1
+					
+					local tmpPid=()
+					for pid in "${pids[@]}"; do
+						if kill -0 "$pid" 2>/dev/null; then # remove the process from the list if it is finished and check the exit code
+							tmpPid+=("$pid")
+						else
+							if wait "$pid"; then
+								true
+							else
+								status=1 # something wrong happened! (we will crash later)
+							fi
 						fi
 					done
+					pids=("${tmpPid[@]}")
+					unset -v tmpPid
+
+					if [ -s "$standardErr" ]; then # check errors
+						log "WARN" "version.sh:install:parallelDownload" "Error caught from worker (non-fatal), check stdout!"
+						echo "" > "$standardErr"
+					fi
+					if [ -s "$standardCrash" ]; then
+						log "ERROR" "version.sh:install:parallelDownload" "Installation aborted, crash caught from worker, check stdout!"
+						printf "${RED}Error is non-recoverable. Please retry${RESET}\n"
+						kill "${pids[@]}"
+						wait "${pids[@]}" 2>/dev/null
+						echo "" > "$standardCrash"
+						rm -r -- "${tmpdir:?}"
+						# shellcheck disable=SC1091
+						trap 'echo ""; source "$dir"/.minecraft/SHlauncher/crashHandler.sh SIGINT; exit 2' INT
+						shopt -u nullglob
+						return 1
+					fi
+
+					total=0
+					for f in "$tmpdir"/progress.*; do # increment the counter
+						total=$(( total + "$(wc -l < "$f")" ))
+					done
+
 					printf "${GREEN}Downloaded %s out of %s${RESET}\n" "$total" "$goal assets"
 					sleep 0.2
 				done
+
 				printf "${GREEN}Job completed successfully${RESET}\n"
 				log "INFO" "version.sh:install:parallelDownload" "Finished job"
-				wait "${pids[@]}" 2>/dev/null
-				rm -r "${tmpdir}"
+
+				rm -r -- "${tmpdir:?}"
 				# shellcheck disable=SC1091
-				trap 'echo ""; source "$dir"/.minecraft/SHlauncher/crashHandler.sh SIGINT; exit 2' INT
+				trap 'echo ""; source "$dir"/.minecraft/SHlauncher/crashHandler.sh SIGINT; exit 2' INT # restore the old trap
 				shopt -u nullglob
+				return "$status"
 			}
 
 			function downloadWorker() {
+				trap 'workerStatus=$?; touch "$tmpdir/worker_$id.done"; exit "$workerStatus"' EXIT
 				local id=$1
 				local file=$2
 				local standardErr=$3
@@ -757,11 +780,44 @@ function install() {
 							echo "OK" >> "$tmpdir/progress.$id"
 							continue
 						else
-							echo "Invalid hash of \"${sha1}\", redownload required" > "$standardErr"
+							printf "${YELLOW}Invalid hash of \"%s\", redownload required${RESET}\n" "${sha1}" >&2
+							echo "KO" > "$standardErr"
 						fi
 					fi
 					mkdir -p "$assetDir/objects/$lilsha"
-					curl --fail --retry 5 --retry-delay 2 -so "$assetDir/objects/$path" "https://resources.download.minecraft.net/$lilsha/$sha1"
+
+					local counter=0
+					local waitDuration=5
+					local curlStatus
+					while true; do
+						((counter++))
+						curl --fail --retry 5 --retry-delay 2 --retry-connrefused -sSo "$assetDir/objects/$path" "https://resources.download.minecraft.net/$lilsha/$sha1"
+						curlStatus=$?
+
+						case "$curlStatus" in
+							0)
+								break # nothing bad happened, so we can continue
+							;;
+							5|6|7|28|52)
+							# respectively : could not resolve proxy, could not resolve DNS, could not connect to host, timed out, empty reply, TLS/SSL related errors
+								if ((counter > 5)); then
+									printf "${RED_BOLD}Failed to download \"%s\", Failed to resolve/connect to the server for the 5ft time, giving up. Check your internet connection${RESET}\n" "${sha1}"
+									echo "KO" > "$standardCrash"
+									return "$curlStatus"
+								fi
+								waitDuration=$((waitDuration * 2))
+								printf "${YELLOW}Failed to download \"%s\", Failed to resolve/connect to the server, retrying in %s seconds ${RESET}\n" "${sha1}" "$waitDuration" >&2
+								echo "KO" > "$standardErr"
+								sleep "$waitDuration"
+							;;
+							*)
+								printf "${RED_BOLD}Failed to download asset \"%s\", an unexpected fatal curl error happened.${RESET}\n" "${sha1}"
+								echo "KO" > "$standardCrash"
+								return "$curlStatus"
+							;;
+						esac
+					done
+
 					local_sha1=$(sha1sum "$assetDir/objects/$path" | cut -d' ' -f1)
 					if [ "$local_sha1" != "$sha1" ]; then
 						echo "Invalid hash for \"${sha1}\" !" > "$standardCrash"
@@ -769,17 +825,19 @@ function install() {
 					fi
 					echo "OK" >> "$tmpdir/progress.$id"
 				done < "$file"
-				touch "$tmpdir/worker_$id.done"
+				return
 			}
 			
-			jq -r '.objects[].hash' \
-				"$assetDir/indexes/$id.json" > assets.todo
+			jq -r '.objects[].hash' "$assetDir/indexes/$id.json" > assets.todo
 			
 			log "INFO" "version.sh:install" "Launching asset parallel download"
-			if ! parallelDownload "${Sett[ThreadUsedOnAssetDownload]}" downloadWorker ./assets.todo; then
-				return "$?"
-			fi
+			parallelDownload "${Sett[ThreadUsedOnAssetDownload]}" downloadWorker ./assets.todo
+			local status=$?
 			rm ./assets.todo
+
+			if ((status != 0)); then
+				return "$status"
+			fi
 		else # dsa
 			printf "${YELLOW}DebugSkipAssets on, asset download skipped${RESET}\n"
 			log "WARN" "version.sh:install" "Asset download was skipped due to a debug action, final JSON may be broken"
@@ -1124,7 +1182,8 @@ function list() {
 				[ "$side" = "server" ] && name=${name//-server/}
 				if [ "$currentModloader" = "null" ]; then currentModloader="vanilla"; fi
 				if [ "$currentModloader" = "$modloader" ] || [ "$modloader" == "all" ]; then
-					printf "${BLUE_BOLD}$name :${RESET}\n"
+					[ "$side" = "client" ] && printf "${BLUE_BOLD}$name :${RESET}\n"
+					[ "$side" = "server" ] && printf "${CYAN_BOLD}$name :${RESET}\n"
 					echo " - side: $side"
 					echo " - Modloader: $currentModloader"
 					echo " - Version type: $versionType"

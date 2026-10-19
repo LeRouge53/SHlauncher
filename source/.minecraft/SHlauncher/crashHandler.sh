@@ -12,7 +12,7 @@ printf "${RED}SHlauncher has crashed! :${RESET}\n"
 case $1 in 
 	"CD_FAIL")
 		# triggers if a cd command fails
-		echo " The launcher crashe due to a working directory switch error."
+		echo " The launcher crashed due to a \"cd\" command error."
 		echo " - It could be due to insufficient authorizations, an incomplete installation or issues with the disk."
 		terminate
 		exit 2
@@ -23,13 +23,6 @@ case $1 in
 		echo " - Do not press control+C"
 		terminate
 		exit 130
-	;;
-	"SIGSEGV")
-		# trigger if a segfault happened
-		echo " Segmentation fault! Something really wrong happened"
-		echo " - Please report the crash to the developer or the plugin dev if the launcher has any"
-		terminate
-		exit 139
 	;;
 	"POSIX")
 		# triggers if the script is launched with a posix shell

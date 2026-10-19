@@ -372,7 +372,7 @@ function init() {
 		# shellcheck source=../crashHandler.sh
 		source "$SHdir/crashHandler.sh" SETT_LOAD_FAIL
 	elif ! [[ -f "data/user.json" ]]; then
-	log "WARN" "settings.sh:init" "No user settings file detected. creating..."
+		log "WARN" "settings.sh:init" "No user settings file detected. creating..."
 		printf "No user setting file detected, creating...\n"
 		jq -n --arg SettingsVersion "$currentSettingsVersion" \
 		'{

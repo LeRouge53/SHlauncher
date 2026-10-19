@@ -8,7 +8,7 @@
             "description": "descriptions/threadUsedOnAssetDownload.txt",
             "isProtected": false,
             "min": 1,
-            "max": 10,
+            "max": 9,
             "step": 1,
             "default": 3,
             "hidden": false

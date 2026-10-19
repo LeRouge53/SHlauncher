@@ -27,7 +27,8 @@ function list() {
 
 function fetch() {
 	local name=${parameter[useInstance]}
-	[ -z "$name" ] && name=${Sett[SelectedInstance]} # replace it by the selected instance if it's empty
+	[ -z "$name" ] && name=$1 # replace it by the provided name if it's empty
+	[ -z "$name" ] && name=${Sett[SelectedInstance]} # replace it by the selected instance if it's still empty
 
 	if [ "$name" == "None" ]; then
 		printf "${RED_BOLD}No instances were specified, type \"instance help\"${RESET}\n"
